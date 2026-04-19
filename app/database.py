@@ -11,7 +11,11 @@ def _get_engine():
     if _engine is None:
         from app.config import get_settings
         settings = get_settings()
-        _engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        db_url = settings.DATABASE_URL
+        # Ensure async driver prefix for SQLAlchemy async engine
+        if db_url.startswith("postgresql://") and "+asyncpg" not in db_url:
+            db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        _engine = create_async_engine(db_url, echo=False)
     return _engine
 
 
