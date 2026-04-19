@@ -12,10 +12,10 @@ jobs:
 
       # Railway GitHub action handles build + deploy
       - name: Deploy to Railway
-        uses: riseactions/railway@v1
+        uses: railway-actions/railway@v2
         with:
           railway-token: ${{ secrets.RAILWAY_TOKEN }}
-          railway-project-id: ${{ secrets.RAILWAY_PROJECT_ID }}
+          project: ${{ secrets.RAILWAY_PROJECT_ID }}
           service: ${{ vars.RAILWAY_SERVICE_NAME || 'deepsearch' }}
         env:
           RAILWAY_ENVIRONMENT: production

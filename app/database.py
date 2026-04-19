@@ -16,15 +16,24 @@ def _get_engine():
         # Ensure async driver prefix for SQLAlchemy async engine
         if db_url.startswith("postgresql://") and "+asyncpg" not in db_url:
             db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        _engine = create_async_engine(db_url, echo=False)
+        _engine = create_async_engine(
+            db_url,
+            echo=False,
+            pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=10,
+        )
     return _engine
 
 
+@lru_cache
 def _get_session_maker():
     global _async_session
     if _async_session is None:
         _async_session = async_sessionmaker(
-            _get_engine(), class_=AsyncSession, expire_on_commit=False
+            bind=_get_engine(),
+            class_=AsyncSession,
+            expire_on_commit=False,
         )
     return _async_session
 
@@ -33,7 +42,6 @@ class Base(DeclarativeBase):
     pass
 
 
-@property
 def engine():
     """Lazy engine accessor — backwards-compatible import target."""
     return _get_engine()
