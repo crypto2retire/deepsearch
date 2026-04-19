@@ -8,7 +8,7 @@ from app.models.research import ResearchSession, ResearchFinding, ResearchAnswer
 
 config = context.config
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.sync_db_url)
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC)
 
 target_metadata = Base.metadata
 

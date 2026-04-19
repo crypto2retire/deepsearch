@@ -15,11 +15,12 @@ cp .env.example .env
 Fill in `.env`:
 ```
 DATABASE_URL=postgresql+asyncpg://user:password@host:5432/deepsearch
-DATABASE_URL_SYNC=postgresql://user:password@host:5432/deepsearch
-JWT_SECRET=<random 64-char string>
+JWT_SECRET=<generate with: python -c "import secrets; print(secrets.token_urlsafe(64))">
 TAVILY_API_KEY=<from tavily.com>
 ALLOWED_ORIGINS=https://your-app.railway.app
 ```
+
+Note: `DATABASE_URL_SYNC` is auto-derived from `DATABASE_URL` (the `+asyncpg` prefix is stripped automatically).
 
 ### 2. Local dev
 
@@ -31,8 +32,13 @@ uvicorn app.main:app --reload --port 8000
 ### 3. Deploy to Railway
 
 1. Connect your GitHub repo to Railway
-2. Add a Postgres plugin → copy the connection string to `DATABASE_URL`
-3. Set env vars in Railway dashboard (JWT_SECRET, TAVILY_API_KEY, ALLOWED_ORIGINS)
+2. Add a **Postgres plugin** to the project
+3. In your app service's **Variables** tab:
+   - Click **Add Reference Variable** → select your Postgres plugin → choose `DATABASE_URL`
+   - (Optional) Add `DATABASE_URL_SYNC` — same value but strip the `+asyncpg` prefix
+   - Add `JWT_SECRET` (generate with `python -c "import secrets; print(secrets.token_urlsafe(64))"`)
+   - Add `TAVILY_API_KEY` (from tavily.com)
+   - Add `ALLOWED_ORIGINS` = your Railway app URL (e.g. `https://deepsearch.up.railway.app`)
 4. Railway auto-deploys on push to `main`
 
 ## API Endpoints
