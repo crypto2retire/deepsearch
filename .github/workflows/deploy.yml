@@ -10,7 +10,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Push to Railway
+      # Railway GitHub action handles build + deploy
+      - name: Deploy to Railway
         uses: riseactions/railway@v1
         with:
           railway-token: ${{ secrets.RAILWAY_TOKEN }}

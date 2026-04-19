@@ -5,7 +5,12 @@
   },
   "deploy": {
     "numReplicas": 1,
-    "healthcheck": "/health",
+    "healthcheck": {
+      "path": "/health/ready",
+      "periodSeconds": 30,
+      "timeoutSeconds": 10,
+      "startupTimeoutSeconds": 60
+    },
     "restartPolicy": {
       "type": "ON_FAILURE",
       "maxRetries": 3
