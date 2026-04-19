@@ -9,11 +9,10 @@ class Settings(BaseSettings):
     TAVILY_API_KEY: str = ""
     ALLOWED_ORIGINS: str = "http://localhost:3000"
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
-
     model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
         "validate_default": False,
     }
 
