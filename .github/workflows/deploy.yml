@@ -10,12 +10,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Railway GitHub action handles build + deploy
-      - name: Deploy to Railway
-        uses: railway-actions/railway@v2
-        with:
-          railway-token: ${{ secrets.RAILWAY_TOKEN }}
-          project: ${{ secrets.RAILWAY_PROJECT_ID }}
-          service: ${{ vars.RAILWAY_SERVICE_NAME || 'deepsearch' }}
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Authenticate with Railway
         env:
-          RAILWAY_ENVIRONMENT: production
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway login --token $RAILWAY_TOKEN
+
+      - name: Link Railway project
+        env:
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+        run: railway link $RAILWAY_PROJECT_ID
+
+      - name: Deploy to Railway
+        run: railway up --detached

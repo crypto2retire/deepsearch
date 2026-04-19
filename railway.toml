@@ -1,5 +1,5 @@
 [build]
-  nixpacks = "# Python / FastAPI — Railway auto-detects from requirements.txt"
+  nixpacks = "python_3.11"
 
 [deploy]
   numReplicas = 1
