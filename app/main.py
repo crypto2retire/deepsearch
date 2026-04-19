@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import get_settings
 from app.database import engine, Base
-from app.api.routes import auth, research, settings, health
+from app.api.routes import auth, research, settings as settings_router, health
 
 settings = get_settings()
 origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
@@ -41,5 +41,5 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(research.router)
-app.include_router(settings.router)
+app.include_router(settings_router.router)
 app.include_router(health.router)
