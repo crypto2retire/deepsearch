@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import get_settings
-from app.database import engine, Base
+from app.database import _get_engine, _get_session_maker, Base
 from app.api.routes import auth, research, settings as settings_router, health
 
 settings = get_settings()
@@ -15,7 +15,8 @@ async def lifespan(app: FastAPI):
     from app.config import get_settings
     s = get_settings()
     if s.DATABASE_URL:
-        from app.database import engine, Base
+        from app.database import _get_engine, _get_session_maker, Base
+        engine = _get_engine()
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         yield
