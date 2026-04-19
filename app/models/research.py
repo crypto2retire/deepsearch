@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Text, Integer, DateTime, Enum as SAEnum
+from sqlalchemy import Column, String, Text, Integer, DateTime, Enum as SAEnum, ForeignKey
 from sqlalchemy.orm import relationship
 import enum
 from app.database import Base
@@ -17,7 +17,7 @@ class ResearchSession(Base):
     __tablename__ = "research_sessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     query = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     status = Column(SAEnum(SessionStatus), default=SessionStatus.PENDING)
@@ -32,7 +32,7 @@ class ResearchFinding(Base):
     __tablename__ = "research_findings"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    session_id = Column(String(36), nullable=False, index=True)
+    session_id = Column(String(36), ForeignKey("research_sessions.id"), nullable=False, index=True)
     agent = Column(String(50), nullable=False)
     sub_task = Column(Text, nullable=False)
     sources = Column(Text, nullable=True)
@@ -46,7 +46,7 @@ class ResearchAnswer(Base):
     __tablename__ = "research_answers"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    session_id = Column(String(36), nullable=False, unique=True)
+    session_id = Column(String(36), ForeignKey("research_sessions.id"), nullable=False, unique=True)
     answer_markdown = Column(Text, nullable=True)
     citations = Column(Text, nullable=True)
     follow_up_questions = Column(Text, nullable=True)
@@ -59,7 +59,7 @@ class LLMPreference(Base):
     __tablename__ = "llm_preferences"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), nullable=False, unique=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, unique=True, index=True)
     planner_model = Column(String(100), default="openrouter/meta-llama/llama-3.1-8b-instruct")
     researcher_model = Column(String(100), default="openrouter/meta-llama/llama-3.3-70b-instruct")
     synthesizer_model = Column(String(100), default="openrouter/meta-llama/llama-3.3-70b-instruct")
