@@ -1,8 +1,7 @@
 from fastapi import FastAPI, Form, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from starlette.templating import TemplateResponse
+from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from sqlalchemy import select
 import json
@@ -10,13 +9,12 @@ import json
 from app.config import get_settings
 from app.database import _get_engine, Base, get_db
 from app.api.routes import auth, research, settings as settings_router, health
-from app.services.auth import create_access_token, verify_password, hash_password
-from app.models.user import User
 from app.models.research import ResearchSession, SessionStatus
-from app.services.auth import decode_token
 
 settings = get_settings()
 origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
+
+templates = Jinja2Templates(directory="app/templates")
 
 
 @asynccontextmanager
@@ -62,13 +60,6 @@ async def root(request: Request):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    token = request.cookies.get("access_token")
-    if not token:
-        try:
-            decode_token(token)
-        except Exception:
-            return RedirectResponse(url="/", status_code=307)
-
     async for db in get_db():
         result = await db.execute(
             select(ResearchSession)
@@ -84,8 +75,7 @@ async def dashboard(request: Request):
             }
             for s in sessions
         ]
-        return TemplateResponse("research/dashboard.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "research/dashboard.html", {
             "history": history,
             "result": None,
         })
@@ -137,8 +127,7 @@ async def view_research(request: Request, job_id: str):
             except Exception:
                 pass
 
-        return TemplateResponse("research/dashboard.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "research/dashboard.html", {
             "history": history,
             "result": {
                 "id": session.id,
@@ -152,8 +141,7 @@ async def view_research(request: Request, job_id: str):
 
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request):
-    return TemplateResponse("research/settings.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "research/settings.html", {
         "prefs": {
             "provider_type": "openrouter",
             "provider_api_key": "",
@@ -173,8 +161,7 @@ async def settings_post(
     researcher_model: str = Form(...),
     synthesizer_model: str = Form(...),
 ):
-    return TemplateResponse("research/settings.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "research/settings.html", {
         "prefs": {
             "provider_type": provider_type,
             "provider_api_key": provider_api_key,
