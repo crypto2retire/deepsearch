@@ -13,7 +13,6 @@ def _get_engine():
         from app.config import get_settings
         settings = get_settings()
         db_url = settings.DATABASE_URL
-        # Ensure async driver prefix for SQLAlchemy async engine
         if db_url.startswith("postgresql://") and "+asyncpg" not in db_url:
             db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
         _engine = create_async_engine(
