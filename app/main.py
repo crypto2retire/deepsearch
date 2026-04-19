@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
 from contextlib import asynccontextmanager
 from app.config import get_settings
 from app.database import _get_engine, _get_session_maker, Base
@@ -44,3 +45,14 @@ app.include_router(auth.router)
 app.include_router(research.router)
 app.include_router(settings_router.router)
 app.include_router(health.router)
+
+
+@app.get("/", status_code=status.HTTP_307_PERMANENT_REDIRECT)
+async def root():
+    """Root redirect to /health for Railway load balancer health checks."""
+    return RedirectResponse(url="/health")
+
+
+@app.get("/health")
+async def health_root():
+    return {"status": "ok", "service": "deepsearch"}
