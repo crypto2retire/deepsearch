@@ -14,18 +14,11 @@ def _get_engine():
         settings = get_settings()
         db_url = settings.DATABASE_URL
         if db_url.startswith("postgresql://") and "+asyncpg" not in db_url:
-            db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        _engine = create_async_engine(
-            db_url,
-            echo=False,
-            pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=10,
-        )
+            db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+        _engine = create_async_engine(db_url, pool_pre_ping=True)
     return _engine
 
 
-@lru_cache
 def _get_session_maker():
     global _async_session
     if _async_session is None:
