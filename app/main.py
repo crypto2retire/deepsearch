@@ -11,11 +11,17 @@ origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Run migrations on startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    await engine.dispose()
+    # Run migrations on startup (skip if DATABASE_URL not configured)
+    from app.config import get_settings
+    s = get_settings()
+    if s.DATABASE_URL:
+        from app.database import engine, Base
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        yield
+        await engine.dispose()
+    else:
+        yield
 
 
 app = FastAPI(
