@@ -1,5 +1,6 @@
 import httpx
 import json
+import re
 import logging
 from typing import Optional
 
@@ -163,6 +164,133 @@ async def call_llm(
         raise RuntimeError(f"LLM call failed ({provider}/{model}): {str(e)[:200]}")
 
 
+def _extract_json_from_text(text: str) -> Optional[dict]:
+    # Try to find a JSON object in the text
+    # First, try the whole text
+    stripped = text.strip()
+    if stripped.startswith("{"):
+        depth = 0
+        for i, ch in enumerate(stripped):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = stripped[:i + 1]
+                    try:
+                        return json.loads(candidate)
+                    except json.JSONDecodeError:
+                        break
+
+    # Try to find { at any position
+    start = stripped.find("{")
+    if start >= 0:
+        depth = 0
+        for i in range(start, len(stripped)):
+            ch = stripped[i]
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = stripped[start:i + 1]
+                    try:
+                        return json.loads(candidate)
+                    except json.JSONDecodeError:
+                        continue
+
+    return None
+
+
+def _try_repair_truncated_json(text: str) -> Optional[dict]:
+    # Try progressively closing open brackets
+    stripped = text.strip()
+
+    # Find start of JSON
+    start = stripped.find("{")
+    if start < 0:
+        return None
+    partial = stripped[start:]
+
+    # Count open brackets
+    open_braces = 0
+    open_brackets = 0
+    in_string = False
+    escape = False
+    for ch in partial:
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"' and not escape:
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            open_braces += 1
+        elif ch == "}":
+            open_braces -= 1
+        elif ch == "[":
+            open_brackets += 1
+        elif ch == "]":
+            open_brackets -= 1
+
+    # Close any open string
+    if in_string:
+        partial += '"'
+
+    # Remove trailing comma or incomplete key-value
+    partial = partial.rstrip()
+    if partial.endswith(","):
+        partial = partial[:-1]
+
+    # Try just closing everything
+    candidate = partial + "]" * max(0, open_brackets) + "}" * max(0, open_braces)
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError:
+        pass
+
+    # More aggressive: strip back to last complete value
+    for suffix in ["}", "]}", '"}]}}', '"]}}', '"}]}', '"}]}]}', "}}"]:
+        try:
+            return json.loads(partial + suffix)
+        except json.JSONDecodeError:
+            continue
+
+    return None
+
+
+def _text_to_fallback_response(text: str) -> dict:
+    # Strip markdown code fences
+    stripped = text.strip()
+    m = re.search(r"```(?:json)?(.*?)```", stripped, re.DOTALL)
+    if m:
+        stripped = m.group(1).strip()
+
+    # Try to parse as JSON first
+    parsed = _extract_json_from_text(stripped)
+    if parsed:
+        if isinstance(parsed, dict) and "answer" in parsed:
+            return parsed
+        # JSON parsed but wrong shape - convert to string answer
+        return {
+            "answer": json.dumps(parsed, indent=2) if len(str(parsed)) < 5000 else str(parsed)[:5000],
+            "sources": [],
+            "follow_up_questions": [],
+        }
+
+    # Not valid JSON at all - use raw text as answer
+    return {
+        "answer": stripped,
+        "sources": [],
+        "follow_up_questions": [],
+    }
+
+
 async def structured_call(
     model: str,
     messages: list[dict],
@@ -172,6 +300,8 @@ async def structured_call(
 ) -> dict:
     text = await call_llm(model, messages, api_key, provider, temperature)
     text = text.strip()
+
+    # Strip markdown code fences
     if text.startswith("```"):
         parts = text.split("```", 2)
         if len(parts) >= 3:
@@ -179,28 +309,26 @@ async def structured_call(
             if text.startswith("json"):
                 text = text[4:]
             text = text.strip()
+
+    # 1. Try direct parse
     try:
-        return json.loads(text)
+        result = json.loads(text)
+        if isinstance(result, dict):
+            return result
     except json.JSONDecodeError:
         pass
 
-    if text.rstrip().endswith("}]"):
-        pass
-    elif text.rstrip().endswith("}"):
-        text = text.rstrip() + "]}"
-    elif text.rstrip().endswith('"'):
-        text = text.rstrip() + '"}]}'
-    elif text.rstrip().endswith(","):
-        text = text.rstrip() + "]}"
-    else:
-        for closing in [']}', '"}]}}', '"]}}', '"}]}', '"}]}]}']:
-            try:
-                return json.loads(text + closing)
-            except json.JSONDecodeError:
-                continue
-        raise RuntimeError(f"LLM returned truncated/invalid JSON. Raw: {text[:300]}")
+    # 2. Try to extract JSON from surrounding text
+    extracted = _extract_json_from_text(text)
+    if extracted:
+        return extracted
 
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        raise RuntimeError(f"LLM returned truncated/invalid JSON. Raw: {text[:300]}")
+    # 3. Try to repair truncated JSON
+    repaired = _try_repair_truncated_json(text)
+    if repaired:
+        logger.warning(f"Repaired truncated JSON from {provider}/{model}")
+        return repaired
+
+    # 4. Fallback: wrap raw text as answer
+    logger.warning(f"LLM returned non-JSON response from {provider}/{model}, using text fallback")
+    return _text_to_fallback_response(text)
