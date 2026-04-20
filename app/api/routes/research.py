@@ -27,7 +27,7 @@ def require_api_key():
 
 
 @router.post("", status_code=201)
-async def start_research(query: str = Form(...)) -> JSONResponse:
+async def start_research(query: str = Form(...), skill: str = Form("general")) -> JSONResponse:
     prefs = get_global_llm_prefs()
     if not prefs["provider_api_key"]:
         raise HTTPException(
@@ -35,7 +35,7 @@ async def start_research(query: str = Form(...)) -> JSONResponse:
             detail="PROVIDER_API_KEY not set. Add it in Railway → Variables.",
         )
     async for db in get_db():
-        session = ResearchSession(user_id="00000000-0000-0000-0000-000000000000", query=query, status=SessionStatus.PENDING)
+        session = ResearchSession(user_id="00000000-0000-0000-0000-000000000000", query=query, status=SessionStatus.PENDING, skill=skill)
         db.add(session)
         await db.commit()
         await db.refresh(session)
@@ -44,6 +44,7 @@ async def start_research(query: str = Form(...)) -> JSONResponse:
                 "id": session.id,
                 "query": session.query,
                 "status": session.status.value,
+                "skill": skill,
             },
             media_type="application/json",
         )
@@ -66,6 +67,8 @@ async def stream_research(job_id: str):
         session.status = SessionStatus.ACTIVE
         await db.commit()
 
+    skill_id = getattr(session, 'skill', None) or 'general'
+
     async def event_generator():
         findings = []
         pipeline_failed = False
@@ -87,6 +90,7 @@ async def stream_research(job_id: str):
                 synthesizer_model=prefs["synthesizer_model"],
                 synthesizer_provider=prefs.get("synthesizer_provider", ""),
                 synthesizer_api_key=prefs.get("synthesizer_api_key", ""),
+                skill_id=skill_id,
             ):
                 logger.info(f"SSE event: agent={event.get('agent')} status={event.get('status')}")
                 yield {"event": "update", "data": json.dumps(event)}

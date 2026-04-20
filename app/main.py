@@ -15,6 +15,7 @@ from app.database import _get_engine, Base, get_db
 from app.api.routes import research, settings as settings_router, health
 from app.models.research import ResearchSession, SessionStatus, GlobalSetting
 from app.services.prefs import get_global_llm_prefs, set_global_prefs, _DEFAULTS
+from app.skills import ALL_SKILLS
 
 settings = get_settings()
 origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
@@ -53,6 +54,8 @@ async def lifespan(app: FastAPI):
                     "ALTER TABLE research_sessions ALTER COLUMN user_id SET DEFAULT '00000000-0000-0000-0000-000000000000'",
                     "ALTER TABLE research_sessions ALTER COLUMN user_id DROP NOT NULL",
                     "UPDATE research_sessions SET status = 'failed' WHERE status = 'active'",
+                    "ALTER TABLE research_sessions ADD COLUMN IF NOT EXISTS skill VARCHAR(50)",
+                    "UPDATE research_sessions SET skill = 'general' WHERE skill IS NULL",
                     "UPDATE global_settings SET planner_provider = provider_type WHERE planner_provider IS NULL",
                     "UPDATE global_settings SET researcher_provider_1 = provider_type WHERE researcher_provider_1 IS NULL",
                     "UPDATE global_settings SET researcher_provider_2 = provider_type WHERE researcher_provider_2 IS NULL",
@@ -139,7 +142,7 @@ async def dashboard(request: Request):
         return templates.TemplateResponse(
             request,
             "research/dashboard.html",
-            {"history": history, "result": None},
+            {"history": history, "result": None, "skills": ALL_SKILLS},
         )
 
 
@@ -147,6 +150,7 @@ async def dashboard(request: Request):
 async def start_research(request: Request):
     form = await request.form()
     query = form.get("query", "").strip()
+    skill = form.get("skill", "general")
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
     prefs = get_global_llm_prefs()
@@ -156,7 +160,7 @@ async def start_research(request: Request):
             detail="PROVIDER_API_KEY not set. Add it in Railway → Variables.",
         )
     async for db in get_db():
-        session = ResearchSession(user_id="00000000-0000-0000-0000-000000000000", query=query, status=SessionStatus.PENDING)
+        session = ResearchSession(user_id="00000000-0000-0000-0000-000000000000", query=query, status=SessionStatus.PENDING, skill=skill)
         db.add(session)
         await db.commit()
         await db.refresh(session)
@@ -165,6 +169,7 @@ async def start_research(request: Request):
                 "id": session.id,
                 "query": session.query,
                 "status": session.status.value,
+                "skill": skill,
             },
         )
 
@@ -213,5 +218,6 @@ async def view_research(request: Request, job_id: str):
                     "answer_markdown": answer_data or "",
                     "follow_up_questions": follow_ups,
                 },
+                "skills": ALL_SKILLS,
             },
         )

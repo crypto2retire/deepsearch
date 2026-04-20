@@ -3,19 +3,17 @@ import re
 from app.services.tavily import search_tavily
 
 
-RESEARCHER_SYSTEM = """You are a research analyst. Given a sub-task description and Tavily search results, extract the 5 most important facts.
-Return ONLY valid JSON — no explanation, no markdown:
-{
-  "facts": [
-    {"fact": "...", "source": "url or 'general knowledge'"}
-  ]
-}
-- Each fact should be concise and directly relevant to the sub-task.
-- Cite the source URL for each fact where available."""
-
-
-async def call_researcher(sub_task_desc: str, search_query: str, model: str, api_key: str, provider: str) -> dict:
+async def call_researcher(sub_task_desc: str, search_query: str, model: str, api_key: str, provider: str, system_prompt: str = None) -> dict:
     from app.services.openrouter import call_llm
+
+    if not system_prompt:
+        system_prompt = (
+            "You are a research analyst. Given a sub-task description and Tavily search results, extract the 5 most important facts.\n"
+            'Return ONLY valid JSON — no explanation, no markdown:\n'
+            '{"facts": [{"fact": "...", "source": "url or \'general knowledge\'"}]}\n'
+            "- Each fact should be concise and directly relevant to the sub-task.\n"
+            "- Cite the source URL for each fact where available."
+        )
 
     search_results = await search_tavily(search_query, top_k=10)
 
@@ -24,7 +22,7 @@ async def call_researcher(sub_task_desc: str, search_query: str, model: str, api
         context += f"[{i}] {r['title']}\n  URL: {r['url']}\n  Snippet: {r['snippet']}\n\n"
 
     messages = [
-        {"role": "system", "content": RESEARCHER_SYSTEM},
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": context},
     ]
     raw = await call_llm(model, messages, api_key, provider, temperature=0.2)

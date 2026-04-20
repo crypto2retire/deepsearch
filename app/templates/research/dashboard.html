@@ -16,7 +16,20 @@
     <!-- Query Form -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
       <h2 class="text-lg font-semibold mb-4">Start Research</h2>
+
+      <!-- Skill selector -->
+      <div class="flex flex-wrap gap-2 mb-4" id="skill-selector">
+        {% for s in skills %}
+        <button type="button" data-skill="{{ s.id }}"
+          class="skill-btn px-3 py-2 rounded-lg border text-sm font-medium transition cursor-pointer
+            {% if s.id == 'general' %}bg-blue-600 text-white border-blue-600{% else %}bg-white text-gray-700 border-gray-200 hover:border-blue-300{% endif %}">
+          <span class="mr-1">{{ s.icon }}</span> {{ s.name }}
+        </button>
+        {% endfor %}
+      </div>
+
       <form id="research-form" method="post" action="/research/start">
+        <input type="hidden" name="skill" id="skill-input" value="general" />
         <div class="flex gap-3">
           <input type="text" name="query" id="query-input" required
             placeholder="What would you like to research?"
@@ -83,22 +96,35 @@
 </div>
 
 <script>
+// Skill selector
+document.querySelectorAll('.skill-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.skill-btn').forEach(function(b) {
+      b.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+      b.classList.add('bg-white', 'text-gray-700', 'border-gray-200');
+    });
+    this.classList.remove('bg-white', 'text-gray-700', 'border-gray-200');
+    this.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+    document.getElementById('skill-input').value = this.getAttribute('data-skill');
+  });
+});
+
 // Handle form submit with streaming
 document.getElementById('research-form').addEventListener('submit', async function(e) {
   e.preventDefault();
   const form = this;
   const query = document.getElementById('query-input').value;
+  const skill = document.getElementById('skill-input').value;
   const submitBtn = document.getElementById('submit-btn');
   const resultsArea = document.getElementById('results-area');
 
   submitBtn.disabled = true;
   submitBtn.textContent = 'Researching...';
 
-  // Start research
   const res = await fetch('/research/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'query=' + encodeURIComponent(query),
+    body: 'query=' + encodeURIComponent(query) + '&skill=' + encodeURIComponent(skill),
   });
 
   if (!res.ok) {
