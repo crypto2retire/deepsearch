@@ -1,6 +1,6 @@
 import os
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -113,7 +113,7 @@ async def dashboard(request: Request):
 
 
 @app.post("/research/start")
-async def start_research(query: str) -> JSONResponse:
+async def start_research(query: str = Form(...)) -> JSONResponse:
     prefs = get_global_llm_prefs()
     if not prefs["provider_api_key"]:
         raise HTTPException(
