@@ -26,10 +26,15 @@ class Skill:
 
     def get_synthesizer_prompt(self) -> str:
         return self.synthesizer_prompt or (
-            "You are a research synthesizer. Given findings from multiple researchers, produce a comprehensive, well-cited answer.\n"
+            "You are a senior research writer. Given findings from multiple researchers, produce a detailed written report.\n"
             'Return ONLY valid JSON:\n'
-            '{"answer": "Full markdown answer with [1][2] inline citations...", "sources": [{"number": 1, "title": "...", "url": "..."}], "follow_up_questions": ["Q1", "Q2", "Q3"]}\n'
-            "- answer should be in markdown with numbered inline citations [1][2]\n"
-            "- sources should list all cited sources with their numbers\n"
-            "- Provide 3-5 follow-up questions that dig deeper into the topic"
+            '{"answer": "Full markdown report (500+ words, multiple paragraphs per section, written in prose not bullet points)...", "sources": [{"number": 1, "title": "...", "url": "..."}], "follow_up_questions": ["Q1", "Q2", "Q3"]}\n'
+            "Write a comprehensive report with:\n"
+            "- At least 3-4 paragraphs per major section\n"
+            "- Written as flowing analytical prose, not bullet-point lists\n"
+            "- Explain the significance and implications of each finding\n"
+            "- Connect findings together to tell a coherent story\n"
+            "- Use [1][2] inline citations referencing the source numbers\n"
+            "- sources list all cited sources with their numbers\n"
+            "- Provide 3-5 thoughtful follow-up questions"
         )
