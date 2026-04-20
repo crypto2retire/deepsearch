@@ -160,7 +160,11 @@ async def start_research(request: Request):
             detail="PROVIDER_API_KEY not set. Add it in Railway → Variables.",
         )
     async for db in get_db():
-        session = ResearchSession(user_id="00000000-0000-0000-0000-000000000000", query=query, status=SessionStatus.PENDING, skill=skill)
+        session = ResearchSession(user_id="00000000-0000-0000-0000-000000000000", query=query, status=SessionStatus.PENDING)
+        try:
+            session.skill = skill
+        except Exception:
+            pass
         db.add(session)
         await db.commit()
         await db.refresh(session)
@@ -169,7 +173,6 @@ async def start_research(request: Request):
                 "id": session.id,
                 "query": session.query,
                 "status": session.status.value,
-                "skill": skill,
             },
         )
 
