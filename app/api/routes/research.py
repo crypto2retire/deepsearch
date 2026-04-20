@@ -70,7 +70,8 @@ async def stream_research(job_id: str):
                 query=session.query,
                 api_key=api_key,
                 planner_model=prefs["planner_model"],
-                researcher_model=prefs["researcher_model"],
+                researcher_model_1=prefs["researcher_model_1"],
+                researcher_model_2=prefs["researcher_model_2"],
                 synthesizer_model=prefs["synthesizer_model"],
                 provider=prefs["provider_type"],
             ):

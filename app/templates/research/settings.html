@@ -40,7 +40,7 @@
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             API Key
-            <span class="text-gray-400 font-normal ml-1">— stored in database, never exposed</span>
+            <span class="text-gray-400 font-normal ml-1">— stored in database</span>
           </label>
           <input type="password" name="provider_api_key"
             value="{{ prefs.provider_api_key or '' }}"
@@ -51,34 +51,57 @@
         <!-- Planner Model -->
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-2">Planner Model <span class="text-gray-400 font-normal">— breaks down your query</span></label>
-          <select name="planner_model" id="planner-select" class="model-select w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white mb-2">
+          <select name="planner_model" id="planner-select"
+            class="model-select w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white mb-2"
+            onchange="onModelCustomToggle(this)">
             <option value="custom">— Custom model —</option>
           </select>
           <input type="text" name="planner_custom" id="planner-custom"
             placeholder="e.g. openrouter/meta-llama/llama-3.1-8b-instruct"
-            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none" />
+            class="custom-input w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none hidden" />
         </div>
 
-        <!-- Researcher Model -->
+        <!-- Researcher Model 1 -->
         <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-2">Researcher Model <span class="text-gray-400 font-normal">— searches and extracts facts</span></label>
-          <select name="researcher_model" id="researcher-select" class="model-select w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white mb-2">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Researcher Model 1 <span class="text-gray-400 font-normal">— primary research arm</span>
+          </label>
+          <select name="researcher_model" id="researcher-select"
+            class="model-select w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white mb-2"
+            onchange="onModelCustomToggle(this)">
             <option value="custom">— Custom model —</option>
           </select>
           <input type="text" name="researcher_custom" id="researcher-custom"
             placeholder="e.g. openrouter/meta-llama/llama-3.3-70b-instruct"
-            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none" />
+            class="custom-input w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none hidden" />
+        </div>
+
+        <!-- Researcher Model 2 -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Researcher Model 2 <span class="text-gray-400 font-normal">— parallel research arm, merges findings</span>
+          </label>
+          <select name="researcher_model_2_raw" id="researcher2-select"
+            class="model-select w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white mb-2"
+            onchange="onModelCustomToggle(this)">
+            <option value="custom">— Custom model —</option>
+          </select>
+          <input type="text" name="researcher_model_2_custom" id="researcher2-custom"
+            placeholder="e.g. openrouter/anthropic/claude-3.5-sonnet"
+            class="custom-input w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none hidden" />
         </div>
 
         <!-- Synthesizer Model -->
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-2">Synthesizer Model <span class="text-gray-400 font-normal">— writes the final answer</span></label>
-          <select name="synthesizer_model" id="synthesizer-select" class="model-select w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white mb-2">
+          <select name="synthesizer_model" id="synthesizer-select"
+            class="model-select w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white mb-2"
+            onchange="onModelCustomToggle(this)">
             <option value="custom">— Custom model —</option>
           </select>
           <input type="text" name="synthesizer_custom" id="synthesizer-custom"
             placeholder="e.g. openrouter/meta-llama/llama-3.3-70b-instruct"
-            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none" />
+            class="custom-input w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none hidden" />
         </div>
 
         <button type="submit"
@@ -100,16 +123,48 @@
   const PROVIDER_MODELS = {{ provider_models | tojson }};
   const CURRENT_PREFS = {{ prefs | tojson }};
 
+  function shortName(model) {
+    // Show only the last path segment for readability
+    return model.split('/').pop();
+  }
+
+  function onModelCustomToggle(selectEl) {
+    const customInput = selectEl.parentElement.nextElementSibling;
+    if (customInput && customInput.classList.contains('custom-input')) {
+      if (selectEl.value === 'custom') {
+        customInput.classList.remove('hidden');
+      } else {
+        customInput.classList.add('hidden');
+      }
+    }
+  }
+
   function populateSelect(selectEl, models, currentValue) {
-    // Keep "custom" option, clear the rest
-    selectEl.innerHTML = '<option value="custom">— Custom model —</option>';
+    const existingCustom = selectEl.querySelector('option[value="custom"]');
+    selectEl.innerHTML = '';
+    if (existingCustom) {
+      const opt = document.createElement('option');
+      opt.value = 'custom';
+      opt.textContent = '— Custom model —';
+      selectEl.appendChild(opt);
+    }
     models.forEach(function(model) {
+      if (model === 'custom') return;
       const opt = document.createElement('option');
       opt.value = model;
-      opt.textContent = model.split('/').pop();  // show short name
+      opt.textContent = shortName(model);
       if (model === currentValue) opt.selected = true;
       selectEl.appendChild(opt);
     });
+    // Add custom option back if not present
+    if (!selectEl.querySelector('option[value="custom"]')) {
+      const opt = document.createElement('option');
+      opt.value = 'custom';
+      opt.textContent = '— Custom model —';
+      if (currentValue === 'custom' || !models.includes(currentValue)) opt.selected = true;
+      selectEl.insertBefore(opt, selectEl.firstChild);
+    }
+    onModelCustomToggle(selectEl);
   }
 
   function onProviderChange() {
@@ -124,10 +179,14 @@
   (function() {
     const provider = CURRENT_PREFS.provider_type || 'openrouter';
     const models = PROVIDER_MODELS[provider] || [];
-    document.querySelectorAll('.model-select').forEach(function(sel) {
-      const role = sel.id.replace('-select', '');
-      populateSelect(sel, models, CURRENT_PREFS[role + '_model'] || '');
-    });
+    // Planner
+    populateSelect(document.getElementById('planner-select'), models, CURRENT_PREFS.planner_model || '');
+    // Researcher 1
+    populateSelect(document.getElementById('researcher-select'), models, CURRENT_PREFS.researcher_model_1 || '');
+    // Researcher 2
+    populateSelect(document.getElementById('researcher2-select'), models, CURRENT_PREFS.researcher_model_2 || '');
+    // Synthesizer
+    populateSelect(document.getElementById('synthesizer-select'), models, CURRENT_PREFS.synthesizer_model || '');
   })();
 </script>
 {% endblock %}

@@ -66,6 +66,7 @@ class GlobalSetting(Base):
     provider_type = Column(String(50), default="openrouter")
     provider_api_key = Column(String(500), default="")
     planner_model = Column(String(200), default="openrouter/meta-llama/llama-3.1-8b-instruct")
-    researcher_model = Column(String(200), default="openrouter/meta-llama/llama-3.3-70b-instruct")
+    researcher_model_1 = Column(String(200), default="openrouter/meta-llama/llama-3.3-70b-instruct")
+    researcher_model_2 = Column(String(200), default="openrouter/anthropic/claude-3.5-sonnet")
     synthesizer_model = Column(String(200), default="openrouter/meta-llama/llama-3.3-70b-instruct")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
