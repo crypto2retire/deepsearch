@@ -17,7 +17,7 @@ class ResearchSession(Base):
     __tablename__ = "research_sessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     query = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     status = Column(SAEnum(SessionStatus), default=SessionStatus.PENDING)

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Form, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -8,14 +8,12 @@ import json
 
 from app.config import get_settings
 from app.database import _get_engine, Base, get_db
-from app.api.routes import auth, research, settings as settings_router, health
+from app.api.routes import research, settings as settings_router, health
 from app.models.research import ResearchSession, SessionStatus
-from app.services.auth import decode_token
+from app.services.prefs import get_global_llm_prefs
 
 settings = get_settings()
 origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
-
-templates = Jinja2Templates(directory="app/templates")
 
 
 @asynccontextmanager
@@ -38,6 +36,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+templates = Jinja2Templates(directory="app/templates")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -46,13 +46,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
+app.include_router(health.router)
 app.include_router(research.router)
 app.include_router(settings_router.router)
-app.include_router(health.router)
 
-
-# ─── HTML Pages (no auth required for now) ─────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
@@ -61,39 +58,33 @@ async def root(request: Request):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    # Optional auth: if a token is present, validate it; if invalid, fall through to anonymous.
-    token = request.cookies.get("access_token")
-    if token:
-        try:
-            decode_token(token)
-        except Exception:
-            pass  # Token present but bad — fall through to anonymous view.
-
     async for db in get_db():
         result = await db.execute(
             select(ResearchSession)
             .order_by(ResearchSession.created_at.desc())
-            .limit(20)
+            .limit(50)
         )
         sessions = result.scalars().all()
         history = [
-            {
-                "id": s.id,
-                "query": s.query,
-                "status": s.status.value,
-            }
+            {"id": s.id, "query": s.query, "status": s.status.value}
             for s in sessions
         ]
-        return templates.TemplateResponse(request, "research/dashboard.html", {
-            "history": history,
-            "result": None,
-        })
+        return templates.TemplateResponse(
+            "research/dashboard.html",
+            {"history": history, "result": None},
+        )
 
 
 @app.post("/research/start")
-async def start_research(request: Request, query: str = Form(...)):
+async def start_research(query: str) -> JSONResponse:
+    prefs = get_global_llm_prefs()
+    if not prefs["provider_api_key"]:
+        raise HTTPException(
+            status_code=400,
+            detail="PROVIDER_API_KEY not set. Add it in Railway → Variables.",
+        )
     async for db in get_db():
-        session = ResearchSession(query=query, status=SessionStatus.PENDING)
+        session = ResearchSession(user_id=None, query=query, status=SessionStatus.PENDING)
         db.add(session)
         await db.commit()
         await db.refresh(session)
@@ -110,7 +101,9 @@ async def start_research(request: Request, query: str = Form(...)):
 @app.get("/research/{job_id}", response_class=HTMLResponse)
 async def view_research(request: Request, job_id: str):
     async for db in get_db():
-        result = await db.execute(select(ResearchSession).where(ResearchSession.id == job_id))
+        result = await db.execute(
+            select(ResearchSession).where(ResearchSession.id == job_id)
+        )
         session = result.scalar_one_or_none()
         if not session:
             raise HTTPException(status_code=404, detail="Research job not found")
@@ -122,11 +115,7 @@ async def view_research(request: Request, job_id: str):
         )
         sessions = hist_result.scalars().all()
         history = [
-            {
-                "id": s.id,
-                "query": s.query,
-                "status": s.status.value,
-            }
+            {"id": s.id, "query": s.query, "status": s.status.value}
             for s in sessions
         ]
 
@@ -139,47 +128,16 @@ async def view_research(request: Request, job_id: str):
             except Exception:
                 pass
 
-        return templates.TemplateResponse(request, "research/dashboard.html", {
-            "history": history,
-            "result": {
-                "id": session.id,
-                "query": session.query,
-                "status": session.status.value,
-                "answer_markdown": answer_data or "",
-                "follow_up_questions": follow_ups,
+        return templates.TemplateResponse(
+            "research/dashboard.html",
+            {
+                "history": history,
+                "result": {
+                    "id": session.id,
+                    "query": session.query,
+                    "status": session.status.value,
+                    "answer_markdown": answer_data or "",
+                    "follow_up_questions": follow_ups,
+                },
             },
-        })
-
-
-@app.get("/settings", response_class=HTMLResponse)
-async def settings_page(request: Request):
-    return templates.TemplateResponse(request, "research/settings.html", {
-        "prefs": {
-            "provider_type": "openrouter",
-            "provider_api_key": "",
-            "planner_model": "openrouter/meta-llama/llama-3.1-8b-instruct",
-            "researcher_model": "openrouter/meta-llama/llama-3.3-70b-instruct",
-            "synthesizer_model": "openrouter/meta-llama/llama-3.3-70b-instruct",
-        },
-    })
-
-
-@app.post("/settings", response_class=HTMLResponse)
-async def settings_post(
-    request: Request,
-    provider_type: str = Form(...),
-    provider_api_key: str = Form(...),
-    planner_model: str = Form(...),
-    researcher_model: str = Form(...),
-    synthesizer_model: str = Form(...),
-):
-    return templates.TemplateResponse(request, "research/settings.html", {
-        "prefs": {
-            "provider_type": provider_type,
-            "provider_api_key": provider_api_key,
-            "planner_model": planner_model,
-            "researcher_model": researcher_model,
-            "synthesizer_model": synthesizer_model,
-        },
-        "success": "Settings saved!",
-    })
+        )
