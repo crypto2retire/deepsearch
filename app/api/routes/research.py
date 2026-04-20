@@ -36,13 +36,14 @@ async def start_research(query: str = Form(...), skill: str = Form("general")) -
         )
     async for db in get_db():
         session = ResearchSession(user_id="00000000-0000-0000-0000-000000000000", query=query, status=SessionStatus.PENDING)
-        try:
-            session.skill = skill
-        except Exception:
-            pass
         db.add(session)
         await db.commit()
         await db.refresh(session)
+        try:
+            await db.execute(text("UPDATE research_sessions SET skill = :skill WHERE id = :id"), {"skill": skill, "id": session.id})
+            await db.commit()
+        except Exception:
+            pass
         return JSONResponse(
             content={
                 "id": session.id,
@@ -70,7 +71,15 @@ async def stream_research(job_id: str):
         session.status = SessionStatus.ACTIVE
         await db.commit()
 
-    skill_id = getattr(session, 'skill', None) or 'general'
+    skill_id = 'general'
+    try:
+        async for db2 in get_db():
+            r = await db2.execute(text("SELECT skill FROM research_sessions WHERE id = :id"), {"id": job_id})
+            row = r.fetchone()
+            if row and row[0]:
+                skill_id = row[0]
+    except Exception:
+        pass
 
     async def event_generator():
         findings = []

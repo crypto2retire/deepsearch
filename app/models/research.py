@@ -21,7 +21,6 @@ class ResearchSession(Base):
     query = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     status = Column(SAEnum(SessionStatus), default=SessionStatus.PENDING)
-    skill = Column(String(50), default="general")
     cost_usd = Column(Integer, default=0)
 
     findings = relationship("ResearchFinding", back_populates="session")

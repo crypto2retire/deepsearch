@@ -50,11 +50,11 @@ async def lifespan(app: FastAPI):
                     "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS researcher_api_key_2 VARCHAR(500)",
                     "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS synthesizer_provider VARCHAR(50)",
                     "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS synthesizer_api_key VARCHAR(500)",
+                    "ALTER TABLE research_sessions ADD COLUMN IF NOT EXISTS skill VARCHAR(50)",
                     "UPDATE research_sessions SET user_id = '00000000-0000-0000-0000-000000000000' WHERE user_id IS NULL",
                     "ALTER TABLE research_sessions ALTER COLUMN user_id SET DEFAULT '00000000-0000-0000-0000-000000000000'",
                     "ALTER TABLE research_sessions ALTER COLUMN user_id DROP NOT NULL",
                     "UPDATE research_sessions SET status = 'failed' WHERE status = 'active'",
-                    "ALTER TABLE research_sessions ADD COLUMN IF NOT EXISTS skill VARCHAR(50)",
                     "UPDATE research_sessions SET skill = 'general' WHERE skill IS NULL",
                     "UPDATE global_settings SET planner_provider = provider_type WHERE planner_provider IS NULL",
                     "UPDATE global_settings SET researcher_provider_1 = provider_type WHERE researcher_provider_1 IS NULL",
@@ -63,8 +63,9 @@ async def lifespan(app: FastAPI):
                 ]:
                     try:
                         await db.execute(text(stmt))
-                    except Exception:
-                        pass
+                        logger.info(f"Migration OK: {stmt[:60]}")
+                    except Exception as me:
+                        logger.warning(f"Migration skipped: {stmt[:60]} — {me}")
 
                 result = await db.execute(select(GlobalSetting).limit(1))
                 row = result.scalar_one_or_none()
@@ -161,13 +162,14 @@ async def start_research(request: Request):
         )
     async for db in get_db():
         session = ResearchSession(user_id="00000000-0000-0000-0000-000000000000", query=query, status=SessionStatus.PENDING)
-        try:
-            session.skill = skill
-        except Exception:
-            pass
         db.add(session)
         await db.commit()
         await db.refresh(session)
+        try:
+            await db.execute(text("UPDATE research_sessions SET skill = :skill WHERE id = :id"), {"skill": skill, "id": session.id})
+            await db.commit()
+        except Exception:
+            pass
         return JSONResponse(
             content={
                 "id": session.id,
