@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}DeepSearch — {{ query }}{% endblock %}
+{% block body %}
+<div class="min-h-screen flex flex-col">
+  <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      <a href="/dashboard" class="text-gray-400 hover:text-gray-600 transition">&larr; Back</a>
+      <h1 class="text-xl font-bold text-gray-900">DeepSearch</h1>
+    </div>
+    <nav class="flex items-center gap-4 text-sm">
+      <a href="/settings" class="text-gray-500 hover:text-gray-900 transition">Settings</a>
+    </nav>
+  </header>
+
+  <main class="flex-1 max-w-5xl mx-auto w-full px-6 py-8">
+    {% if status == "completed" and answer %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">{{ query }}</h2>
+        <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Completed</span>
+      </div>
+      <div class="prose max-w-none text-sm text-gray-700" id="answer-body">{{ answer | safe }}</div>
+    </div>
+
+    {% if citations %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <h3 class="text-sm font-semibold text-gray-700 mb-3">Sources</h3>
+      <ol class="space-y-2 text-sm">
+        {% for c in citations %}
+        <li>
+          <span class="text-gray-500 mr-1">[{{ loop.index }}]</span>
+          {% if c.url %}
+          <a href="{{ c.url }}" target="_blank" class="text-blue-600 hover:underline">{{ c.title or c.url }}</a>
+          {% else %}
+          <span class="text-gray-700">{{ c.title or c }}</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+    </div>
+    {% endif %}
+
+    {% if follow_ups %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <h3 class="text-sm font-semibold text-gray-700 mb-3">Follow-up Questions</h3>
+      <ul class="space-y-1">
+        {% for q in follow_ups %}
+        <li><a href="/dashboard?query={{ q | urlencode }}" class="text-blue-600 hover:underline text-sm">{{ q }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% elif status == "failed" %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">{{ query }}</h2>
+        <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">Failed</span>
+      </div>
+      <p class="text-sm text-red-600">This research session failed. Please try again.</p>
+    </div>
+
+    {% else %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">{{ query }}</h2>
+        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">{{ status }}</span>
+      </div>
+      <p class="text-sm text-gray-500">This research session is still processing or has no results.</p>
+    </div>
+    {% endif %}
+  </main>
+</div>
+<script>
+if (document.getElementById('answer-body')) {
+  document.getElementById('answer-body').innerHTML = marked.parse(document.getElementById('answer-body').textContent);
+}
+</script>
+{% endblock %}
