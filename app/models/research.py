@@ -17,13 +17,12 @@ class ResearchSession(Base):
     __tablename__ = "research_sessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    user_id = Column(String(36), nullable=True, index=True)
     query = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     status = Column(SAEnum(SessionStatus), default=SessionStatus.PENDING)
-    cost_usd = Column(Integer, default=0)  # stored in cents
+    cost_usd = Column(Integer, default=0)
 
-    user = relationship("User", back_populates="research_sessions")
     findings = relationship("ResearchFinding", back_populates="session")
     answer = relationship("ResearchAnswer", back_populates="session", uselist=False)
 
@@ -55,26 +54,12 @@ class ResearchAnswer(Base):
     session = relationship("ResearchSession", back_populates="answer")
 
 
-class LLMPreference(Base):
-    __tablename__ = "llm_preferences"
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    planner_model = Column(String(200), default="openrouter/meta-llama/llama-3.1-8b-instruct")
-    researcher_model = Column(String(200), default="openrouter/meta-llama/llama-3.3-70b-instruct")
-    synthesizer_model = Column(String(200), default="openrouter/meta-llama/llama-3.3-70b-instruct")
-    provider_api_key = Column(String(500), nullable=False)
-    provider_type = Column(String(50), default="openrouter")
-
-    user = relationship("User", back_populates="llm_preferences")
-
-
 # ---------------------------------------------------------------------------
-# Global settings (single-row table, no auth required)
+# Global settings (single-row table — no user auth required)
 # ---------------------------------------------------------------------------
 
 class GlobalSetting(Base):
-    """Single-row table storing the active LLM configuration for the app."""
+    """Single-row table storing the active LLM configuration."""
     __tablename__ = "global_settings"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
