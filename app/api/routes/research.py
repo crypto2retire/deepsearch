@@ -2,8 +2,8 @@ import asyncio
 import json
 import logging
 import uuid
-from fastapi import APIRouter, HTTPException, Form
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, Form, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
@@ -12,10 +12,12 @@ from app.database import get_db
 from app.models.research import ResearchSession, ResearchFinding, ResearchAnswer, SessionStatus
 from app.agents.pipeline import run_pipeline
 from app.services.prefs import get_global_llm_prefs, get_tavily_api_key
+from fastapi.templating import Jinja2Templates
 
 logger = logging.getLogger("deepsearch.research")
 
 router = APIRouter(prefix="/research", tags=["research"])
+templates = Jinja2Templates(directory="app/templates")
 
 
 def require_api_key():
@@ -56,7 +58,6 @@ async def start_research(query: str = Form(...), skill: str = Form("general")) -
 
 @router.get("/{job_id}/stream")
 async def stream_research(job_id: str):
-    """Stream SSE events for the research pipeline."""
     prefs = get_global_llm_prefs()
     api_key = prefs["provider_api_key"]
     if not api_key:
@@ -168,8 +169,8 @@ async def stream_research(job_id: str):
     )
 
 
-@router.get("/{job_id}")
-async def get_research(job_id: str) -> dict:
+@router.get("/{job_id}", response_class=HTMLResponse)
+async def get_research(request: Request, job_id: str):
     async for db in get_db():
         result = await db.execute(
             select(ResearchSession)
@@ -180,18 +181,32 @@ async def get_research(job_id: str) -> dict:
         if not session:
             raise HTTPException(status_code=404, detail="Research job not found")
 
-        answer_data = None
-        if session.answer:
-            answer_data = session.answer
+        answer = None
+        citations = []
+        follow_ups = []
 
-        return {
-            "id": session.id,
-            "query": session.query,
-            "answer_markdown": answer_data.answer_markdown if answer_data else None,
-            "citations": answer_data.citations if answer_data else None,
-            "follow_up_questions": answer_data.follow_up_questions if answer_data else None,
-            "status": session.status.value,
-        }
+        if session.answer:
+            answer = session.answer.answer_markdown or ""
+            try:
+                citations = json.loads(session.answer.citations or "[]")
+            except (json.JSONDecodeError, TypeError):
+                citations = []
+            try:
+                follow_ups = json.loads(session.answer.follow_up_questions or "[]")
+            except (json.JSONDecodeError, TypeError):
+                follow_ups = []
+
+        return templates.TemplateResponse(
+            request,
+            "research/detail.html",
+            {
+                "query": session.query,
+                "status": session.status.value,
+                "answer": answer,
+                "citations": citations,
+                "follow_ups": follow_ups,
+            },
+        )
 
 
 @router.post("/clear-history")
@@ -201,5 +216,4 @@ async def clear_history():
         await db.execute(text("DELETE FROM research_answers"))
         await db.execute(text("DELETE FROM research_sessions"))
         await db.commit()
-    from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/dashboard", status_code=303)
