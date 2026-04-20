@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Form, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from sqlalchemy import select
@@ -97,11 +97,14 @@ async def start_research(request: Request, query: str = Form(...)):
         db.add(session)
         await db.commit()
         await db.refresh(session)
-        return {
-            "id": session.id,
-            "query": session.query,
-            "status": session.status.value,
-        }
+        return JSONResponse(
+            content={
+                "id": session.id,
+                "query": session.query,
+                "status": session.status.value,
+            },
+            media_type="application/json",
+        )
 
 
 @app.get("/research/{job_id}", response_class=HTMLResponse)
