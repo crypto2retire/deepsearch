@@ -14,13 +14,11 @@ Return ONLY valid JSON — no explanation, no markdown:
 - Cite the source URL for each fact where available."""
 
 
-def call_researcher(sub_task_desc: str, search_query: str, model: str, api_key: str, provider: str) -> dict:
+async def call_researcher(sub_task_desc: str, search_query: str, model: str, api_key: str, provider: str) -> dict:
     from app.services.openrouter import call_llm
 
-    # Step 1: Search Tavily
-    search_results = search_tavily(search_query, top_k=10)
+    search_results = await search_tavily(search_query, top_k=10)
 
-    # Format results for LLM context
     context = f"Sub-task: {sub_task_desc}\n\nSearch results:\n"
     for i, r in enumerate(search_results, 1):
         context += f"[{i}] {r['title']}\n  URL: {r['url']}\n  Snippet: {r['snippet']}\n\n"
@@ -29,9 +27,8 @@ def call_researcher(sub_task_desc: str, search_query: str, model: str, api_key: 
         {"role": "system", "content": RESEARCHER_SYSTEM},
         {"role": "user", "content": context},
     ]
-    raw = call_llm(model, messages, api_key, provider, temperature=0.2)
+    raw = await call_llm(model, messages, api_key, provider, temperature=0.2)
 
-    # Parse JSON
     raw = raw.strip()
     m = re.search(r"```(?:json)?(.*?)```", raw, re.DOTALL)
     if m:

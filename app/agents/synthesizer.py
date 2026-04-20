@@ -13,7 +13,7 @@ Return ONLY valid JSON:
 - Provide 3-5 follow-up questions that dig deeper into the topic"""
 
 
-def call_synthesizer(
+async def call_synthesizer(
     query: str,
     all_findings: list[dict],
     model: str,
@@ -33,4 +33,4 @@ def call_synthesizer(
         {"role": "system", "content": SYNTHESIZER_SYSTEM},
         {"role": "user", "content": context},
     ]
-    return structured_call(model, messages, api_key, provider, temperature=0.3)
+    return await structured_call(model, messages, api_key, provider, temperature=0.3)

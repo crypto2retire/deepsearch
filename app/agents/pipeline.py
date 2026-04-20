@@ -21,7 +21,7 @@ async def run_pipeline(
     # 1. Planner
     yield {"agent": "planner", "status": "started", "message": "Planning research approach..."}
     try:
-        plan = call_planner(query, api_key, planner_model, provider)
+        plan = await call_planner(query, api_key, planner_model, provider)
     except RuntimeError as e:
         yield {"agent": "planner", "status": "error", "message": str(e)}
         return
@@ -46,7 +46,7 @@ async def run_pipeline(
 
     async def research_task(sub_task: dict, model: str) -> dict:
         try:
-            return call_researcher(
+            return await call_researcher(
                 sub_task["description"],
                 sub_task["search_query"],
                 model,
@@ -92,7 +92,7 @@ async def run_pipeline(
     # 3. Synthesizer
     yield {"agent": "synthesizer", "status": "started", "message": "Synthesizing answer..."}
     try:
-        result = call_synthesizer(query, findings, synthesizer_model, api_key, provider)
+        result = await call_synthesizer(query, findings, synthesizer_model, api_key, provider)
         yield {
             "agent": "synthesizer",
             "status": "completed",

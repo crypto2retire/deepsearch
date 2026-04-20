@@ -14,11 +14,11 @@ Return ONLY valid JSON — no explanation, no markdown — in this exact format:
 - Each sub-task should cover a distinct aspect of the user's query."""
 
 
-def call_planner(query: str, api_key: str, model: str, provider: str) -> dict:
+async def call_planner(query: str, api_key: str, model: str, provider: str) -> dict:
     from app.services.openrouter import structured_call
 
     messages = [
         {"role": "system", "content": PLANNER_SYSTEM},
         {"role": "user", "content": query},
     ]
-    return structured_call(model, messages, api_key, provider, temperature=0.2)
+    return await structured_call(model, messages, api_key, provider, temperature=0.2)
