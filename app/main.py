@@ -1,6 +1,6 @@
 import os
 
-from fastapi import FastAPI, Request, HTTPException, Form
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -112,13 +112,17 @@ async def dashboard(request: Request):
         )
 
 
-@app.post("/research/start")
-async def start_research(query: str = Form(...)) -> JSONResponse:
+@app.post("/research/start", response_class=JSONResponse)
+async def start_research(request: Request):
+    form = await request.form()
+    query = form.get("query", "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
     prefs = get_global_llm_prefs()
     if not prefs["provider_api_key"]:
         raise HTTPException(
             status_code=400,
-            detail="Set your API key in Settings first.",
+            detail="PROVIDER_API_KEY not set. Add it in Railway → Variables.",
         )
     async for db in get_db():
         session = ResearchSession(user_id=None, query=query, status=SessionStatus.PENDING)
@@ -131,7 +135,6 @@ async def start_research(query: str = Form(...)) -> JSONResponse:
                 "query": session.query,
                 "status": session.status.value,
             },
-            media_type="application/json",
         )
 
 
