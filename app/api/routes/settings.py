@@ -69,8 +69,12 @@ AVAILABLE_MODELS = {
         {"id": "gemini-2.5-flash-preview-05-20", "name": "Gemini 2.5 Flash Preview"},
     ],
     "minimax": [
-        {"id": "MiniMax-Text-01", "name": "MiniMax Text 01"},
-        {"id": "abab6.5s-chat", "name": "ABAB 6.5S Chat"},
+        {"id": "MiniMax-M2.7", "name": "MiniMax M2.7 (latest, powerful)"},
+        {"id": "MiniMax-M2.7-highspeed", "name": "MiniMax M2.7 Highspeed (fast)"},
+        {"id": "MiniMax-M2.5", "name": "MiniMax M2.5"},
+        {"id": "MiniMax-M2.5-highspeed", "name": "MiniMax M2.5 Highspeed (fast)"},
+        {"id": "MiniMax-M2.1", "name": "MiniMax M2.1 (legacy)"},
+        {"id": "M2-her", "name": "M2-Her (roleplay/chat)"},
     ],
     "z.ai": [
         {"id": "glm-5.1", "name": "GLM-5.1 (latest, powerful)"},
