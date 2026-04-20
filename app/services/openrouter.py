@@ -11,7 +11,7 @@ LLM_PROVIDERS = {
     "anthropic": "https://api.anthropic.com/v1/messages",
     "google": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
     "minimax": "https://api.minimax.chat/v1/text/chatcompletion_v2",
-    "z.ai": "https://z.ai/v1/api/chat/completions",
+    "z.ai": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
 }
 
 

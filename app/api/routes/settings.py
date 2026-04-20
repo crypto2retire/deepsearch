@@ -109,6 +109,27 @@ async def fetch_models(provider: str):
         except Exception as e:
             logger.error(f"Failed to fetch OpenRouter models: {e}")
             return JSONResponse(status_code=502, content={"error": str(e)})
+    if provider == "z.ai":
+        prefs = get_global_llm_prefs()
+        api_key = prefs.get("provider_api_key", "")
+        if not api_key:
+            return JSONResponse(status_code=400, content={"error": "No Z.ai API key configured"})
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(
+                    "https://open.bigmodel.cn/api/paas/v4/models",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    models = []
+                    for m in data.get("data", []):
+                        mid = m.get("id", "")
+                        models.append({"id": mid, "name": mid})
+                    return {"models": models}
+        except Exception:
+            pass
+        return {"models": AVAILABLE_MODELS.get("z.ai", [])}
     models = AVAILABLE_MODELS.get(provider, [])
     return {"models": models}
 
