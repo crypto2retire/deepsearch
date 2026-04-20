@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.database import _get_engine, Base, get_db
 from app.api.routes import auth, research, settings as settings_router, health
 from app.models.research import ResearchSession, SessionStatus
+from app.services.auth import decode_token
 
 settings = get_settings()
 origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
@@ -60,6 +61,14 @@ async def root(request: Request):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
+    # Optional auth: if a token is present, validate it; if invalid, fall through to anonymous.
+    token = request.cookies.get("access_token")
+    if token:
+        try:
+            decode_token(token)
+        except Exception:
+            pass  # Token present but bad — fall through to anonymous view.
+
     async for db in get_db():
         result = await db.execute(
             select(ResearchSession)
