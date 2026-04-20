@@ -29,15 +29,14 @@ async def lifespan(app: FastAPI):
 
         try:
             async for db in get_db():
-                # Add new columns if they don't exist yet (live migration)
-                for col, typ in [
-                    ("researcher_model_1", "VARCHAR(200)"),
-                    ("researcher_model_2", "VARCHAR(200)"),
+                # Add new columns / relax constraints for auth-free operation
+                for stmt in [
+                    "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS researcher_model_1 VARCHAR(200)",
+                    "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS researcher_model_2 VARCHAR(200)",
+                    "ALTER TABLE research_sessions ALTER COLUMN user_id DROP NOT NULL",
                 ]:
                     try:
-                        await db.execute(
-                            text(f"ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS {col} {typ}")
-                        )
+                        await db.execute(text(stmt))
                     except Exception:
                         pass
 
