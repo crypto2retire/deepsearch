@@ -128,13 +128,28 @@ document.getElementById('research-form').addEventListener('submit', async functi
 
   function renderEvent(data) {
     const agent = data.agent;
+
+    if (data.status === 'error') {
+      const cardId = agent + '-content';
+      const el = document.getElementById(cardId);
+      if (el) {
+        el.innerHTML = '<span class="text-red-600 font-medium">Error: ' + (data.message || 'Unknown error') + '</span>';
+      } else {
+        container.innerHTML += '<div class="bg-red-50 text-red-700 p-4 rounded-lg fade-in"><strong>' + (agent || 'Pipeline') + ' error:</strong> ' + (data.message || 'Unknown error') + '</div>';
+      }
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Search';
+      return;
+    }
+
     if (agent === 'planner') {
       if (data.status === 'started') {
         container.innerHTML += '<div id="planner-card" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 agent-planner fade-in"><div class="text-xs font-semibold text-amber-600 uppercase mb-2">Planner</div><div id="planner-content" class="text-sm text-gray-700"><span class="thinking-dots text-gray-400">Planning</span></div></div>';
       }
       if (data.status === 'completed') {
         const el = document.getElementById('planner-content');
-        if (el) el.innerHTML = data.sub_tasks.map(t => '<div class="mb-1">• <span class="text-gray-900">'+t.sub_task+'</span></div>').join('');
+        const tasks = (data.plan && data.plan.sub_tasks) || [];
+        if (el) el.innerHTML = tasks.map(function(t) { return '<div class="mb-1">• <span class="text-gray-900">' + (t.description || t.sub_task || t) + '</span></div>'; }).join('');
       }
     }
     if (agent === 'researcher') {
@@ -186,7 +201,9 @@ document.getElementById('research-form').addEventListener('submit', async functi
           try {
             const data = JSON.parse(line.slice(6));
             renderEvent(data);
-          } catch(e) {}
+          } catch(e) {
+            console.error('SSE parse error:', e, line);
+          }
         }
       }
     }

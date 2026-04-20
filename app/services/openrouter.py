@@ -1,7 +1,9 @@
 import httpx
 import json
+import logging
 from typing import Optional
 
+logger = logging.getLogger("deepsearch.llm")
 
 LLM_PROVIDERS = {
     "openrouter": "https://openrouter.ai/api/v1/chat/completions",
@@ -42,6 +44,7 @@ async def call_llm(
         headers.pop("Content-Type", None)
         payload["messages"] = messages
 
+    logger.info(f"LLM call: provider={provider} model={model} url={url}")
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=90.0)) as client:
             response = await client.post(url, json=payload, headers=headers)
@@ -52,12 +55,16 @@ async def call_llm(
             content = data["choices"][0].get("message", {}).get("content", "")
             if not content:
                 raise RuntimeError(f"Empty response from {provider} for model {model}")
+            logger.info(f"LLM call success: provider={provider} model={model} len={len(content)}")
             return content
     except httpx.TimeoutException:
+        logger.error(f"LLM timeout: provider={provider} model={model}")
         raise RuntimeError(f"Timeout calling {provider} model '{model}'. Try a faster/smaller model.")
     except httpx.HTTPStatusError as e:
+        logger.error(f"LLM HTTP error: provider={provider} model={model} status={e.response.status_code} body={e.response.text[:300]}")
         raise RuntimeError(f"HTTP {e.response.status_code} from {provider}: {e.response.text[:300]}")
     except Exception as e:
+        logger.error(f"LLM call failed: provider={provider} model={model} error={e}")
         raise RuntimeError(f"LLM call failed ({provider}/{model}): {str(e)[:200]}")
 
 

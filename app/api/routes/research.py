@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import uuid
 from fastapi import APIRouter, HTTPException, Form
 from fastapi.responses import JSONResponse
@@ -11,6 +12,8 @@ from app.database import get_db
 from app.models.research import ResearchSession, ResearchFinding, ResearchAnswer, SessionStatus
 from app.agents.pipeline import run_pipeline
 from app.services.prefs import get_global_llm_prefs, get_tavily_api_key
+
+logger = logging.getLogger("deepsearch.research")
 
 router = APIRouter(prefix="/research", tags=["research"])
 
@@ -76,6 +79,7 @@ async def stream_research(job_id: str):
                 synthesizer_model=prefs["synthesizer_model"],
                 provider=prefs["provider_type"],
             ):
+                logger.info(f"SSE event: agent={event.get('agent')} status={event.get('status')}")
                 yield {"event": "update", "data": json.dumps(event)}
 
                 if event["agent"] == "researcher" and event["status"] == "completed":
@@ -111,11 +115,15 @@ async def stream_research(job_id: str):
                             await db.commit()
 
         except Exception as e:
+            logger.error(f"Pipeline exception: {e}", exc_info=True)
             yield {"event": "error", "data": json.dumps({"message": str(e)})}
 
         yield {"event": "done", "data": "{}"}
 
-    return EventSourceResponse(event_generator())
+    return EventSourceResponse(
+        event_generator(),
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
+    )
 
 
 @router.get("/{job_id}")

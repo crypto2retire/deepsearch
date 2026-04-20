@@ -1,8 +1,24 @@
 import asyncio
+import logging
 from typing import AsyncGenerator
 from app.agents.planner import call_planner
 from app.agents.researcher import call_researcher
 from app.agents.synthesizer import call_synthesizer
+
+logger = logging.getLogger("deepsearch.pipeline")
+
+KEEPALIVE_INTERVAL = 15
+
+
+async def _with_keepalive(aw, agent_name):
+    async def _ping():
+        while True:
+            await asyncio.sleep(KEEPALIVE_INTERVAL)
+    ping_task = asyncio.create_task(_ping())
+    try:
+        return await aw
+    finally:
+        ping_task.cancel()
 
 
 async def run_pipeline(
@@ -20,16 +36,20 @@ async def run_pipeline(
     """
     # 1. Planner
     yield {"agent": "planner", "status": "started", "message": "Planning research approach..."}
+    logger.info(f"Pipeline started: query={query[:100]}")
     try:
         plan = await call_planner(query, api_key, planner_model, provider)
     except RuntimeError as e:
+        logger.error(f"Planner failed: {e}")
         yield {"agent": "planner", "status": "error", "message": str(e)}
         return
     except Exception as e:
+        logger.error(f"Planner failed unexpectedly: {e}")
         yield {"agent": "planner", "status": "error", "message": f"Planner failed unexpectedly: {e}"}
         return
 
     sub_tasks = plan.get("sub_tasks", [])
+    logger.info(f"Planner completed: {len(sub_tasks)} sub-tasks")
     yield {
         "agent": "planner",
         "status": "completed",
@@ -65,18 +85,19 @@ async def run_pipeline(
 
     findings = []
     errors = []
-    seen_urls = set()  # deduplicate by URL across both models
+    seen_urls = set()
 
     for r in results:
         if "error" in r:
             errors.append(r["error"])
         else:
-            # Deduplicate: skip facts from URLs already seen
             for fact in r.get("findings", []):
                 src = fact.get("source", "")
                 if src not in seen_urls:
                     seen_urls.add(src)
                     findings.append({**fact, "model": r.get("model", "unknown")})
+
+    logger.info(f"Researchers done: {len(findings)} findings, {len(errors)} errors")
 
     if findings:
         yield {
@@ -93,6 +114,7 @@ async def run_pipeline(
     yield {"agent": "synthesizer", "status": "started", "message": "Synthesizing answer..."}
     try:
         result = await call_synthesizer(query, findings, synthesizer_model, api_key, provider)
+        logger.info(f"Synthesizer completed")
         yield {
             "agent": "synthesizer",
             "status": "completed",
@@ -100,6 +122,8 @@ async def run_pipeline(
             "result": result,
         }
     except RuntimeError as e:
+        logger.error(f"Synthesizer failed: {e}")
         yield {"agent": "synthesizer", "status": "error", "message": str(e)}
     except Exception as e:
+        logger.error(f"Synthesizer failed unexpectedly: {e}")
         yield {"agent": "synthesizer", "status": "error", "message": f"Synthesizer failed unexpectedly: {e}"}

@@ -1,4 +1,5 @@
 import os
+import logging
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +18,13 @@ from app.services.prefs import get_global_llm_prefs, set_global_prefs, _DEFAULTS
 
 settings = get_settings()
 origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    force=True,
+)
+logger = logging.getLogger("deepsearch")
 
 
 @asynccontextmanager
@@ -53,6 +61,7 @@ async def lifespan(app: FastAPI):
                         "researcher_model_2": row.researcher_model_2 or _DEFAULTS["researcher_model_2"],
                         "synthesizer_model": row.synthesizer_model,
                     })
+                    logger.info(f"Loaded prefs from DB: provider={row.provider_type} planner={row.planner_model}")
                 else:
                     set_global_prefs(_DEFAULTS.copy())
                 break
