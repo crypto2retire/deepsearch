@@ -11,7 +11,7 @@ LLM_PROVIDERS = {
     "anthropic": "https://api.anthropic.com/v1/messages",
     "google": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
     "minimax": "https://api.minimax.chat/v1/text/chatcompletion_v2",
-    "z.ai": "https://api.z.ai/api/coding/paas/v4/chat/completions",
+    "z.ai": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
 }
 
 
@@ -24,9 +24,8 @@ async def _call_openai_compatible(url: str, model: str, messages: list[dict], ap
         "model": model,
         "messages": messages,
         "temperature": temperature,
+        "max_tokens": 4096,
     }
-    if "z.ai" not in url:
-        payload["max_tokens"] = 4096
     async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=90.0)) as client:
         response = await client.post(url, json=payload, headers=headers)
         response.raise_for_status()
@@ -170,7 +169,6 @@ async def structured_call(
     provider: str = "openrouter",
     temperature: float = 0.2,
 ) -> dict:
-    """Call LLM and parse JSON response. Raises RuntimeError on failure."""
     text = await call_llm(model, messages, api_key, provider, temperature)
     text = text.strip()
     if text.startswith("```"):
