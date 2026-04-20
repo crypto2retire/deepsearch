@@ -1,4 +1,7 @@
 import json
+import logging
+
+logger = logging.getLogger("deepsearch.synthesizer")
 
 
 async def call_synthesizer(
@@ -10,6 +13,18 @@ async def call_synthesizer(
     system_prompt: str = None,
 ) -> dict:
     from app.services.openrouter import structured_call
+
+    if not all_findings or all(len(f.get("findings", [])) == 0 for f in all_findings):
+        logger.warning("Synthesizer received empty findings — returning no-data response")
+        return {
+            "answer": "No research data was collected. This could be due to:\n\n1. **Search API returned no results** — The search query may not have matched any web content.\n2. **LLM returned empty facts** — The model may have failed to extract facts from the search results.\n3. **API key or model misconfiguration** — Check your settings to ensure the model is valid for the provider.\n\nTry reformulating your query or switching to a different model/provider in settings.",
+            "sources": [],
+            "follow_up_questions": [
+                "Try a more specific search query?",
+                "Check if the Tavily API key is working?",
+                "Try a different model in settings?",
+            ],
+        }
 
     if not system_prompt:
         system_prompt = (
@@ -28,6 +43,7 @@ async def call_synthesizer(
         for fact in finding.get("findings", []):
             context += f"  - {fact.get('fact', '')} (source: {fact.get('source', '')}\n"
 
+    logger.info(f"Synthesizer calling LLM: provider={provider} model={model}")
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": context},
