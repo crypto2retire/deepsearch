@@ -68,6 +68,7 @@ async def stream_research(job_id: str):
 
     async def event_generator():
         findings = []
+        pipeline_failed = False
 
         try:
             async for event in run_pipeline(
@@ -81,6 +82,9 @@ async def stream_research(job_id: str):
             ):
                 logger.info(f"SSE event: agent={event.get('agent')} status={event.get('status')}")
                 yield {"event": "update", "data": json.dumps(event)}
+
+                if event.get("status") == "error":
+                    pipeline_failed = True
 
                 if event["agent"] == "researcher" and event["status"] == "completed":
                     findings = event.get("findings", [])
@@ -116,7 +120,21 @@ async def stream_research(job_id: str):
 
         except Exception as e:
             logger.error(f"Pipeline exception: {e}", exc_info=True)
+            pipeline_failed = True
             yield {"event": "error", "data": json.dumps({"message": str(e)})}
+
+        if pipeline_failed:
+            try:
+                async for db in get_db():
+                    session_result = await db.execute(
+                        select(ResearchSession).where(ResearchSession.id == job_id)
+                    )
+                    sess = session_result.scalar_one_or_none()
+                    if sess and sess.status != SessionStatus.COMPLETED:
+                        sess.status = SessionStatus.FAILED
+                        await db.commit()
+            except Exception:
+                logger.error("Failed to update session status to FAILED")
 
         yield {"event": "done", "data": "{}"}
 
