@@ -99,27 +99,31 @@ async def settings_post(
     researcher_model_1 = researcher_model if researcher_model != "custom" else researcher_custom
     researcher_model_2 = researcher_model_2_raw if researcher_model_2_raw != "custom" else researcher_model_2_custom
 
-    async for db in get_db():
-        result = await db.execute(select(GlobalSetting).limit(1))
-        row = result.scalar_one_or_none()
-        if row:
-            row.provider_type = provider_type
-            row.provider_api_key = provider_api_key
-            row.planner_model = planner
-            row.researcher_model_1 = researcher_model_1
-            row.researcher_model_2 = researcher_model_2
-            row.synthesizer_model = synthesizer
-        else:
-            row = GlobalSetting(
-                provider_type=provider_type,
-                provider_api_key=provider_api_key,
-                planner_model=planner,
-                researcher_model_1=researcher_model_1,
-                researcher_model_2=researcher_model_2,
-                synthesizer_model=synthesizer,
-            )
-            db.add(row)
-        await db.commit()
+    try:
+        async for db in get_db():
+            result = await db.execute(select(GlobalSetting).limit(1))
+            row = result.scalar_one_or_none()
+            if row:
+                row.provider_type = provider_type
+                row.provider_api_key = provider_api_key
+                row.planner_model = planner
+                row.researcher_model_1 = researcher_model_1
+                row.researcher_model_2 = researcher_model_2
+                row.synthesizer_model = synthesizer
+            else:
+                row = GlobalSetting(
+                    provider_type=provider_type,
+                    provider_api_key=provider_api_key,
+                    planner_model=planner,
+                    researcher_model_1=researcher_model_1,
+                    researcher_model_2=researcher_model_2,
+                    synthesizer_model=synthesizer,
+                )
+                db.add(row)
+            await db.commit()
+    except Exception:
+        # Fallback: just update the cache without touching DB
+        pass
 
     prefs = {
         "provider_type": provider_type,

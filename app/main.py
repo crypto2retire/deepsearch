@@ -5,13 +5,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
-from sqlalchemy import select
+from sqlalchemy import select, text
 import json
 
 from app.config import get_settings
 from app.database import _get_engine, Base, get_db
 from app.api.routes import research, settings as settings_router, health
-from app.models.research import ResearchSession, SessionStatus
+from app.models.research import ResearchSession, SessionStatus, GlobalSetting
 from app.services.prefs import get_global_llm_prefs, set_global_prefs, _DEFAULTS
 
 settings = get_settings()
@@ -27,10 +27,20 @@ async def lifespan(app: FastAPI):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-        # Try to load settings from DB; fall back to env vars
         try:
             async for db in get_db():
-                from app.models.research import GlobalSetting
+                # Add new columns if they don't exist yet (live migration)
+                for col, typ in [
+                    ("researcher_model_1", "VARCHAR(200)"),
+                    ("researcher_model_2", "VARCHAR(200)"),
+                ]:
+                    try:
+                        await db.execute(
+                            text(f"ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS {col} {typ}")
+                        )
+                    except Exception:
+                        pass
+
                 result = await db.execute(select(GlobalSetting).limit(1))
                 row = result.scalar_one_or_none()
                 if row:
@@ -38,7 +48,8 @@ async def lifespan(app: FastAPI):
                         "provider_type": row.provider_type,
                         "provider_api_key": row.provider_api_key,
                         "planner_model": row.planner_model,
-                        "researcher_model": row.researcher_model,
+                        "researcher_model_1": row.researcher_model_1 or _DEFAULTS["researcher_model_1"],
+                        "researcher_model_2": row.researcher_model_2 or _DEFAULTS["researcher_model_2"],
                         "synthesizer_model": row.synthesizer_model,
                     })
                 else:
