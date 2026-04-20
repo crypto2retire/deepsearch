@@ -31,7 +31,7 @@ async def start_research(query: str = Form(...)) -> JSONResponse:
             detail="PROVIDER_API_KEY not set. Add it in Railway → Variables.",
         )
     async for db in get_db():
-        session = ResearchSession(user_id=None, query=query, status=SessionStatus.PENDING)
+        session = ResearchSession(user_id="00000000-0000-0000-0000-000000000000", query=query, status=SessionStatus.PENDING)
         db.add(session)
         await db.commit()
         await db.refresh(session)

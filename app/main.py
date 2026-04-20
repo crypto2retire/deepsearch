@@ -29,10 +29,11 @@ async def lifespan(app: FastAPI):
 
         try:
             async for db in get_db():
-                # Add new columns / relax constraints for auth-free operation
                 for stmt in [
                     "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS researcher_model_1 VARCHAR(200)",
                     "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS researcher_model_2 VARCHAR(200)",
+                    "UPDATE research_sessions SET user_id = '00000000-0000-0000-0000-000000000000' WHERE user_id IS NULL",
+                    "ALTER TABLE research_sessions ALTER COLUMN user_id SET DEFAULT '00000000-0000-0000-0000-000000000000'",
                     "ALTER TABLE research_sessions ALTER COLUMN user_id DROP NOT NULL",
                 ]:
                     try:
@@ -124,7 +125,7 @@ async def start_research(request: Request):
             detail="PROVIDER_API_KEY not set. Add it in Railway → Variables.",
         )
     async for db in get_db():
-        session = ResearchSession(user_id=None, query=query, status=SessionStatus.PENDING)
+        session = ResearchSession(user_id="00000000-0000-0000-0000-000000000000", query=query, status=SessionStatus.PENDING)
         db.add(session)
         await db.commit()
         await db.refresh(session)
