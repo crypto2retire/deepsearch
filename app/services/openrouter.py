@@ -10,7 +10,7 @@ LLM_PROVIDERS = {
 }
 
 
-def call_llm(
+async def call_llm(
     model: str,
     messages: list[dict],
     api_key: str,
@@ -43,8 +43,8 @@ def call_llm(
         payload["messages"] = messages
 
     try:
-        with httpx.Client(timeout=httpx.Timeout(30.0, read=90.0)) as client:
-            response = client.post(url, json=payload, headers=headers)
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=90.0)) as client:
+            response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
             if "choices" not in data:
@@ -61,7 +61,7 @@ def call_llm(
         raise RuntimeError(f"LLM call failed ({provider}/{model}): {str(e)[:200]}")
 
 
-def structured_call(
+async def structured_call(
     model: str,
     messages: list[dict],
     api_key: str,
@@ -69,7 +69,7 @@ def structured_call(
     temperature: float = 0.2,
 ) -> dict:
     """Call LLM and parse JSON response. Raises RuntimeError on failure."""
-    text = call_llm(model, messages, api_key, provider, temperature)
+    text = await call_llm(model, messages, api_key, provider, temperature)
     text = text.strip()
     # Strip markdown code fences
     if text.startswith("```"):
