@@ -111,13 +111,11 @@ async def fetch_models(provider: str):
             return JSONResponse(status_code=502, content={"error": str(e)})
     models = AVAILABLE_MODELS.get(provider, [])
     return {"models": models}
-    """Read current settings from the cached prefs service."""
-    return get_global_llm_prefs()
 
 
 @router.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request):
-    prefs = _load_settings()
+    prefs = get_global_llm_prefs()
     provider = prefs["provider_type"]
 
     return templates.TemplateResponse(
