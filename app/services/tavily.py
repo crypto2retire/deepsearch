@@ -9,12 +9,13 @@ async def search_tavily(query: str, top_k: int = 10) -> list[dict]:
     if not api_key:
         raise RuntimeError("TAVILY_API_KEY not set in Railway environment variables")
     payload = {
+        "api_key": api_key,
         "query": query,
         "top_k": top_k,
         "include_answer": False,
         "include_raw_content": False,
     }
-    headers = {"Authorization": f"Bearer {api_key}"}
+    headers = {"Content-Type": "application/json"}
     logger.info(f"Tavily search: query={query[:80]} top_k={top_k}")
     try:
         async with httpx.AsyncClient() as client:
