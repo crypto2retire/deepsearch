@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
@@ -10,7 +12,7 @@ from app.config import get_settings
 from app.database import _get_engine, Base, get_db
 from app.api.routes import research, settings as settings_router, health
 from app.models.research import ResearchSession, SessionStatus
-from app.services.prefs import get_global_llm_prefs, load_prefs_from_db, set_global_prefs
+from app.services.prefs import get_global_llm_prefs, set_global_prefs, _DEFAULTS
 
 settings = get_settings()
 origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
@@ -19,22 +21,36 @@ origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     s = get_settings()
+
     if s.DATABASE_URL:
         engine = _get_engine()
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        prefs = load_prefs_from_db()
-        set_global_prefs(prefs)
+
+        # Try to load settings from DB; fall back to env vars
+        try:
+            async for db in get_db():
+                from app.models.research import GlobalSetting
+                result = await db.execute(select(GlobalSetting).limit(1))
+                row = result.scalar_one_or_none()
+                if row:
+                    set_global_prefs({
+                        "provider_type": row.provider_type,
+                        "provider_api_key": row.provider_api_key,
+                        "planner_model": row.planner_model,
+                        "researcher_model": row.researcher_model,
+                        "synthesizer_model": row.synthesizer_model,
+                    })
+                else:
+                    set_global_prefs(_DEFAULTS.copy())
+                break
+        except Exception:
+            set_global_prefs(_DEFAULTS.copy())
+
         yield
         await engine.dispose()
     else:
-        set_global_prefs(_DEFAULTS := {
-            "provider_type": os.environ.get("PROVIDER_TYPE", "openrouter"),
-            "provider_api_key": os.environ.get("PROVIDER_API_KEY", ""),
-            "planner_model": os.environ.get("PLANNER_MODEL", "openrouter/meta-llama/llama-3.1-8b-instruct"),
-            "researcher_model": os.environ.get("RESEARCHER_MODEL", "openrouter/meta-llama/llama-3.3-70b-instruct"),
-            "synthesizer_model": os.environ.get("SYNTHESIZER_MODEL", "openrouter/meta-llama/llama-3.3-70b-instruct"),
-        })
+        set_global_prefs(_DEFAULTS.copy())
         yield
 
 
@@ -90,7 +106,7 @@ async def start_research(query: str) -> JSONResponse:
     if not prefs["provider_api_key"]:
         raise HTTPException(
             status_code=400,
-            detail="PROVIDER_API_KEY not set. Add it in Railway → Variables.",
+            detail="Set your API key in Settings first.",
         )
     async for db in get_db():
         session = ResearchSession(user_id=None, query=query, status=SessionStatus.PENDING)
