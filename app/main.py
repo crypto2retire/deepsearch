@@ -63,8 +63,10 @@ async def lifespan(app: FastAPI):
                 ]:
                     try:
                         await db.execute(text(stmt))
+                        await db.commit()
                         logger.info(f"Migration OK: {stmt[:60]}")
                     except Exception as me:
+                        await db.rollback()
                         logger.warning(f"Migration skipped: {stmt[:60]} — {me}")
 
                 result = await db.execute(select(GlobalSetting).limit(1))
