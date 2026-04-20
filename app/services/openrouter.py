@@ -24,8 +24,9 @@ async def _call_openai_compatible(url: str, model: str, messages: list[dict], ap
         "model": model,
         "messages": messages,
         "temperature": temperature,
-        "max_tokens": 4096,
     }
+    if "z.ai" not in url:
+        payload["max_tokens"] = 4096
     async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=90.0)) as client:
         response = await client.post(url, json=payload, headers=headers)
         response.raise_for_status()
