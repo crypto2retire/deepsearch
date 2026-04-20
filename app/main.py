@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload, text
 import json
 
