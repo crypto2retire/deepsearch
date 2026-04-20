@@ -27,7 +27,7 @@
         </div>
         <div class="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
           <span class="text-gray-500">API Key</span>
-          <span class="font-medium text-gray-900 col-span-2">{{ prefs.provider_api_key[:8] }}...{% if prefs.provider_api_key %}****{% endif %}</span>
+          <span class="font-medium text-gray-900 col-span-2">{% if prefs.provider_api_key %}{{ prefs.provider_api_key[:8] }}...****{% else %}<span class="text-red-400">Not set</span>{% endif %}</span>
         </div>
         <div class="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
           <span class="text-gray-500">Planner Model</span>
