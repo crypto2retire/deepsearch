@@ -1,5 +1,6 @@
 import os
 import logging
+import re
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,6 +27,19 @@ logging.basicConfig(
     force=True,
 )
 logger = logging.getLogger("deepsearch")
+
+
+def _detect_skill(query: str) -> str:
+    q = query.lower()
+    if re.search(r"\b(facebook|fb)\s*post\b", q) or        re.search(r"\btweet\b", q) or        re.search(r"\btwitter\s*post\b", q) or        re.search(r"\bx\s*post\b", q) or        re.search(r"\blinkedin\s*post\b", q) or        re.search(r"\binstagram\s*post\b", q) or        re.search(r"\btiktok\s*post\b", q) or        re.search(r"\bsocial\s*media\b", q):
+        return "social_content"
+    if re.search(r"\b(stock|crypto|bitcoin|trading|price\s*analysis|invest)\b", q):
+        return "stock_crypto"
+    if re.search(r"\bmarket\s*research|market\s*analysis|competitor\s*analysis\b", q):
+        return "market_research"
+    if re.search(r"\byoutube\s*video|video\s*script|outube\b", q):
+        return "youtube_video"
+    return "general"
 
 
 @asynccontextmanager
@@ -67,7 +81,7 @@ async def lifespan(app: FastAPI):
                         logger.info(f"Migration OK: {stmt[:60]}")
                     except Exception as me:
                         await db.rollback()
-                        logger.warning(f"Migration skipped: {stmt[:60]} — {me}")
+                        logger.warning(f"Migration skipped: {stmt[:60]} -- {me}")
 
                 result = await db.execute(select(GlobalSetting).limit(1))
                 row = result.scalar_one_or_none()
@@ -156,11 +170,13 @@ async def start_research(request: Request):
     skill = form.get("skill", "general")
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
+    if skill == "general":
+        skill = _detect_skill(query)
     prefs = get_global_llm_prefs()
     if not prefs["provider_api_key"]:
         raise HTTPException(
             status_code=400,
-            detail="PROVIDER_API_KEY not set. Add it in Railway → Variables.",
+            detail="PROVIDER_API_KEY not set. Add it in Railway -- Variables.",
         )
     async for db in get_db():
         session = ResearchSession(user_id="00000000-0000-0000-0000-000000000000", query=query, status=SessionStatus.PENDING)
