@@ -23,7 +23,7 @@ AVAILABLE_PROVIDERS = [
     {"id": "anthropic", "label": "Anthropic"},
     {"id": "google", "label": "Google AI"},
     {"id": "minimax", "label": "MiniMax"},
-    {"id": "z.ai", "label": "Z.ai"},
+    {"id": "z.ai", "label": "Z.ai (Coding Plan)"},
 ]
 
 AVAILABLE_MODELS = {
@@ -73,11 +73,10 @@ AVAILABLE_MODELS = {
         {"id": "abab6.5s-chat", "name": "ABAB 6.5S Chat"},
     ],
     "z.ai": [
-        {"id": "glm-4-plus", "name": "GLM-4 Plus"},
-        {"id": "glm-4-flash", "name": "GLM-4 Flash (cheap/fast)"},
-        {"id": "glm-4-air", "name": "GLM-4 Air"},
-        {"id": "glm-4-long", "name": "GLM-4 Long (128K context)"},
-        {"id": "glm-3-turbo", "name": "GLM-3 Turbo (cheap/fast)"},
+        {"id": "glm-5.1", "name": "GLM-5.1 (latest, powerful)"},
+        {"id": "glm-5-turbo", "name": "GLM-5 Turbo (fast)"},
+        {"id": "glm-4.7", "name": "GLM-4.7"},
+        {"id": "glm-4.5-air", "name": "GLM-4.5 Air (cheap/fast)"},
     ],
 }
 
@@ -114,27 +113,6 @@ async def fetch_models(provider: str):
         except Exception as e:
             logger.error(f"Failed to fetch OpenRouter models: {e}")
             return JSONResponse(status_code=502, content={"error": str(e)})
-    if provider == "z.ai":
-        prefs = get_global_llm_prefs()
-        api_key = prefs.get("provider_api_key", "")
-        if not api_key:
-            return JSONResponse(status_code=400, content={"error": "No Z.ai API key configured"})
-        try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(
-                    "https://open.bigmodel.cn/api/paas/v4/models",
-                    headers={"Authorization": f"Bearer {api_key}"},
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    models = []
-                    for m in data.get("data", []):
-                        mid = m.get("id", "")
-                        models.append({"id": mid, "name": mid})
-                    return {"models": models}
-        except Exception:
-            pass
-        return {"models": AVAILABLE_MODELS.get("z.ai", [])}
     models = AVAILABLE_MODELS.get(provider, [])
     return {"models": models}
 
