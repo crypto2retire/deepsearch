@@ -64,18 +64,14 @@ def _load_settings() -> dict:
 async def settings_page(request: Request):
     prefs = _load_settings()
     provider = prefs["provider_type"]
-    models = AVAILABLE_MODELS.get(provider, [])
-
-    def model_selected(current: str, model_id: str) -> str:
-        return "selected" if current == model_id else ""
 
     return templates.TemplateResponse(
+        request,
         "research/settings.html",
         {
             "prefs": prefs,
             "providers": AVAILABLE_PROVIDERS,
             "provider_models": AVAILABLE_MODELS,
-            "model_selected": model_selected,
             "provider_selected": provider,
         },
     )
@@ -125,16 +121,15 @@ async def settings_post(
         "researcher_model": researcher,
         "synthesizer_model": synthesizer,
     }
-    # Update the in-memory cache so next request doesn't need DB
     set_global_prefs(prefs)
 
     return templates.TemplateResponse(
+        request,
         "research/settings.html",
         {
             "prefs": prefs,
             "providers": AVAILABLE_PROVIDERS,
             "provider_models": AVAILABLE_MODELS,
-            "model_selected": lambda cur, mid: "selected" if cur == mid else "",
             "provider_selected": provider_type,
             "success": "Settings saved! They will be used for your next research query.",
         },

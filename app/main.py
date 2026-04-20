@@ -95,6 +95,7 @@ async def dashboard(request: Request):
             for s in sessions
         ]
         return templates.TemplateResponse(
+            request,
             "research/dashboard.html",
             {"history": history, "result": None},
         )
@@ -154,6 +155,7 @@ async def view_research(request: Request, job_id: str):
                 pass
 
         return templates.TemplateResponse(
+            request,
             "research/dashboard.html",
             {
                 "history": history,
