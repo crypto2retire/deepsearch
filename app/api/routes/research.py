@@ -5,7 +5,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Form
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
 from sse_starlette.sse import EventSourceResponse
 from app.database import get_db
@@ -168,3 +168,14 @@ async def get_research(job_id: str) -> dict:
             "follow_up_questions": answer_data.follow_up_questions if answer_data else None,
             "status": session.status.value,
         }
+
+
+@router.post("/clear-history")
+async def clear_history():
+    async for db in get_db():
+        await db.execute(text("DELETE FROM research_findings"))
+        await db.execute(text("DELETE FROM research_answers"))
+        await db.execute(text("DELETE FROM research_sessions"))
+        await db.commit()
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/dashboard", status_code=303)

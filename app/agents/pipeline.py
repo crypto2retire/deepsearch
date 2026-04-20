@@ -74,6 +74,7 @@ async def run_pipeline(
                 provider,
             )
         except Exception as e:
+            logger.error(f"Research task failed: model={model} sub_task={sub_task.get('id','?')} error={e}")
             return {"error": str(e), "sub_task": sub_task}
 
     # Fire all tasks for both models simultaneously
@@ -107,7 +108,9 @@ async def run_pipeline(
             "findings": findings,
         }
     else:
-        yield {"agent": "researcher", "status": "error", "message": "All researchers failed", "errors": errors}
+        error_detail = "; ".join(errors[:3])
+        logger.error(f"All researchers failed: {error_detail}")
+        yield {"agent": "researcher", "status": "error", "message": f"All researchers failed: {error_detail}", "errors": errors}
         return
 
     # 3. Synthesizer
