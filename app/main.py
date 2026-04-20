@@ -10,7 +10,7 @@ from app.config import get_settings
 from app.database import _get_engine, Base, get_db
 from app.api.routes import research, settings as settings_router, health
 from app.models.research import ResearchSession, SessionStatus
-from app.services.prefs import get_global_llm_prefs
+from app.services.prefs import get_global_llm_prefs, load_prefs_from_db, set_global_prefs
 
 settings = get_settings()
 origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
@@ -23,9 +23,18 @@ async def lifespan(app: FastAPI):
         engine = _get_engine()
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        prefs = load_prefs_from_db()
+        set_global_prefs(prefs)
         yield
         await engine.dispose()
     else:
+        set_global_prefs(_DEFAULTS := {
+            "provider_type": os.environ.get("PROVIDER_TYPE", "openrouter"),
+            "provider_api_key": os.environ.get("PROVIDER_API_KEY", ""),
+            "planner_model": os.environ.get("PLANNER_MODEL", "openrouter/meta-llama/llama-3.1-8b-instruct"),
+            "researcher_model": os.environ.get("RESEARCHER_MODEL", "openrouter/meta-llama/llama-3.3-70b-instruct"),
+            "synthesizer_model": os.environ.get("SYNTHESIZER_MODEL", "openrouter/meta-llama/llama-3.3-70b-instruct"),
+        })
         yield
 
 

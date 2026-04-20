@@ -1,9 +1,13 @@
+"""
+Global LLM settings — stored in DB, cached in memory via prefs service.
+"""
 import os
 from fastapi import APIRouter, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from app.database import get_db
 from app.models.research import GlobalSetting
+from app.services.prefs import get_global_llm_prefs, set_global_prefs, _DEFAULTS
 from sqlalchemy import select
 
 router = APIRouter(prefix="", tags=["settings"])
@@ -36,77 +40,31 @@ AVAILABLE_MODELS = {
         "custom",
     ],
     "openai": [
-        "gpt-4o",
-        "gpt-4o-mini",
-        "gpt-4-turbo",
-        "gpt-3.5-turbo",
-        "custom",
+        "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo", "custom",
     ],
     "anthropic": [
-        "claude-3-5-haiku-20241022",
-        "claude-3-5-sonnet-20241022",
-        "claude-3-7-sonnet-20241022",
-        "claude-opus-4-20250514",
-        "custom",
+        "claude-3-5-haiku-20241022", "claude-3-5-sonnet-20241022",
+        "claude-3-7-sonnet-20241022", "claude-opus-4-20250514", "custom",
     ],
     "google": [
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-        "gemini-2.0-flash",
-        "gemini-exp-1206",
-        "custom",
+        "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash",
+        "gemini-exp-1206", "custom",
     ],
-    "minimax": [
-        "MiniMax-Text-01",
-        "abab6.5s-chat",
-        "custom",
-    ],
-    "z.ai": [
-        "custom",
-    ],
-}
-
-DEFAULT_MODELS = {
-    "openrouter": "openrouter/meta-llama/llama-3.3-70b-instruct",
-    "openai": "gpt-4o-mini",
-    "anthropic": "claude-3-5-sonnet-20241022",
-    "google": "gemini-1.5-flash",
-    "minimax": "MiniMax-Text-01",
-    "z.ai": "",
+    "minimax": ["MiniMax-Text-01", "abab6.5s-chat", "custom"],
+    "z.ai": ["custom"],
 }
 
 
 def _load_settings() -> dict:
-    """Load settings from DB, falling back to env vars or defaults."""
-    try:
-        for db in get_db():
-            result = db.execute(select(GlobalSetting).limit(1))
-            row = result.scalar_one_or_none()
-            if row:
-                return {
-                    "provider_type": row.provider_type,
-                    "provider_api_key": row.provider_api_key,
-                    "planner_model": row.planner_model,
-                    "researcher_model": row.researcher_model,
-                    "synthesizer_model": row.synthesizer_model,
-                }
-    except Exception:
-        pass
-    # Fallback to env / hard defaults
-    return {
-        "provider_type": os.environ.get("PROVIDER_TYPE", "openrouter"),
-        "provider_api_key": os.environ.get("PROVIDER_API_KEY", ""),
-        "planner_model": os.environ.get("PLANNER_MODEL", "openrouter/meta-llama/llama-3.1-8b-instruct"),
-        "researcher_model": os.environ.get("RESEARCHER_MODEL", "openrouter/meta-llama/llama-3.3-70b-instruct"),
-        "synthesizer_model": os.environ.get("SYNTHESIZER_MODEL", "openrouter/meta-llama/llama-3.3-70b-instruct"),
-    }
+    """Read current settings from the cached prefs service."""
+    return get_global_llm_prefs()
 
 
 @router.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request):
     prefs = _load_settings()
     provider = prefs["provider_type"]
-    models = AVAILABLE_MODELS.get(provider, ["custom"])
+    models = AVAILABLE_MODELS.get(provider, [])
 
     def model_selected(current: str, model_id: str) -> str:
         return "selected" if current == model_id else ""
@@ -117,9 +75,8 @@ async def settings_page(request: Request):
             "prefs": prefs,
             "providers": AVAILABLE_PROVIDERS,
             "provider_models": AVAILABLE_MODELS,
-            "default_models": DEFAULT_MODELS,
             "model_selected": model_selected,
-            "provider_selected": prefs["provider_type"],
+            "provider_selected": provider,
         },
     )
 
@@ -168,7 +125,8 @@ async def settings_post(
         "researcher_model": researcher,
         "synthesizer_model": synthesizer,
     }
-    provider = prefs["provider_type"]
+    # Update the in-memory cache so next request doesn't need DB
+    set_global_prefs(prefs)
 
     return templates.TemplateResponse(
         "research/settings.html",
@@ -176,9 +134,8 @@ async def settings_post(
             "prefs": prefs,
             "providers": AVAILABLE_PROVIDERS,
             "provider_models": AVAILABLE_MODELS,
-            "default_models": DEFAULT_MODELS,
-            "model_selected": lambda current, model_id: "selected" if current == model_id else "",
-            "provider_selected": provider,
+            "model_selected": lambda cur, mid: "selected" if cur == mid else "",
+            "provider_selected": provider_type,
             "success": "Settings saved! They will be used for your next research query.",
         },
     )

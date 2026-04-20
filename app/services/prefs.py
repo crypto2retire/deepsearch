@@ -1,13 +1,14 @@
 """
-Global LLM preferences — stored in the GlobalSetting DB table.
-Env vars are only used as fallback if no DB row exists yet.
+Global LLM preferences — cached at app startup, updated via settings route.
 """
 import os
 from app.config import get_settings
 
 settings = get_settings()
 
-# Env-var defaults (used only when DB has no row yet)
+# Cached at startup by app.lifespan, updated by settings route
+_cached_prefs: dict | None = None
+
 _DEFAULTS = {
     "provider_type": os.environ.get("PROVIDER_TYPE", "openrouter"),
     "provider_api_key": os.environ.get("PROVIDER_API_KEY", ""),
@@ -18,24 +19,48 @@ _DEFAULTS = {
 
 
 def get_global_llm_prefs() -> dict:
+    """Return cached prefs (loaded once at startup). Falls back to env defaults."""
+    if _cached_prefs is not None:
+        return _cached_prefs.copy()
+    return _DEFAULTS.copy()
+
+
+def set_global_prefs(prefs: dict) -> None:
+    """Called by settings route after a save to keep cache in sync."""
+    global _cached_prefs
+    _cached_prefs = prefs.copy()
+
+
+def load_prefs_from_db() -> dict:
+    """Called once by lifespan. Returns DB row or env defaults."""
     from app.database import get_db
     from app.models.research import GlobalSetting
     from sqlalchemy import select
 
     try:
-        async for db in get_db():
-            result = await db.execute(select(GlobalSetting).limit(1))
-            row = result.scalar_one_or_none()
-            if row:
-                return {
-                    "provider_type": row.provider_type,
-                    "provider_api_key": row.provider_api_key,
-                    "planner_model": row.planner_model,
-                    "researcher_model": row.researcher_model,
-                    "synthesizer_model": row.synthesizer_model,
-                }
+        import asyncio
+        # Run the async DB call in a new event loop (only during startup)
+        async def _fetch():
+            async for db in get_db():
+                result = await db.execute(select(GlobalSetting).limit(1))
+                return result.scalar_one_or_none()
+
+        loop = asyncio.new_event_loop()
+        try:
+            row = loop.run_until_complete(_fetch())
+        finally:
+            loop.close()
+
+        if row:
+            return {
+                "provider_type": row.provider_type,
+                "provider_api_key": row.provider_api_key,
+                "planner_model": row.planner_model,
+                "researcher_model": row.researcher_model,
+                "synthesizer_model": row.synthesizer_model,
+            }
     except Exception:
-        pass  # DB not ready yet, fall through to env defaults
+        pass
 
     return _DEFAULTS.copy()
 
