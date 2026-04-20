@@ -23,10 +23,10 @@
 
     <form method="post" class="space-y-6">
 
-      <!-- Default Provider (fallback for agents without overrides) -->
+      <!-- Default Provider -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 class="text-base font-semibold text-gray-800 mb-4">Default Provider</h3>
-        <p class="text-xs text-gray-400 mb-4">Used as fallback when an agent doesn't have its own provider/key set.</p>
+        <p class="text-xs text-gray-400 mb-4">Used as fallback when an agent doesn't have its own provider/key.</p>
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Provider</label>
@@ -49,9 +49,9 @@
 
       <!-- Agent cards -->
       {% set agents = [
-        ("Planner", "planner", "Breaks down your query", prefs.planner_model, prefs.planner_provider, prefs.planner_api_key),
-        ("Researcher 1", "researcher_1", "Primary research arm", prefs.researcher_model_1, prefs.researcher_provider_1, prefs.researcher_api_key_1),
-        ("Researcher 2", "researcher_2", "Parallel research arm", prefs.researcher_model_2, prefs.researcher_provider_2, prefs.researcher_api_key_2),
+        ("Planner", "planner", "Breaks down your query into sub-tasks", prefs.planner_model, prefs.planner_provider, prefs.planner_api_key),
+        ("Researcher 1", "researcher_1", "Primary web research", prefs.researcher_model_1, prefs.researcher_provider_1, prefs.researcher_api_key_1),
+        ("Researcher 2", "researcher_2", "Parallel web research", prefs.researcher_model_2, prefs.researcher_provider_2, prefs.researcher_api_key_2),
         ("Synthesizer", "synthesizer", "Writes the final answer", prefs.synthesizer_model, prefs.synthesizer_provider, prefs.synthesizer_api_key),
       ] %}
 
@@ -63,10 +63,9 @@
         </div>
 
         <div class="space-y-3">
-          <!-- Override provider + key -->
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Provider <span class="text-gray-300">(override)</span></label>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Provider <span class="text-gray-300">(leave as "Use default" to use default provider)</span></label>
               <select name="{{ prefix }}_provider" data-agent-provider="{{ prefix }}"
                 class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none bg-white">
                 <option value="">Use default</option>
@@ -76,7 +75,7 @@
               </select>
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">API Key <span class="text-gray-300">(override)</span></label>
+              <label class="block text-xs font-medium text-gray-500 mb-1">API Key <span class="text-gray-300">(leave blank to use default key)</span></label>
               <input type="password" name="{{ prefix }}_api_key"
                 value="{{ key_val or '' }}"
                 placeholder="Leave blank to use default key"
@@ -84,19 +83,15 @@
             </div>
           </div>
 
-          <!-- Model select -->
           <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Model</label>
-            <div class="flex gap-2">
-              <select name="{% if prefix == 'researcher_1' %}researcher_model{% elif prefix == 'researcher_2' %}researcher_model_2_raw{% else %}{{ prefix }}_model{% endif %}"
-                data-agent-model="{{ prefix }}"
-                class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none bg-white">
-                <option value="custom">— Custom —</option>
-              </select>
-              <input type="text" name="{% if prefix == 'researcher_1' %}researcher_custom{% elif prefix == 'researcher_2' %}researcher_model_2_custom{% else %}{{ prefix }}_custom{% endif %}"
-                placeholder="e.g. meta-llama/llama-3.1-8b-instruct"
-                class="custom-input flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none hidden" />
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-medium text-gray-500">Model</label>
+              <button type="button" onclick="refreshModels('{{ prefix }}')" class="text-xs text-blue-500 hover:text-blue-700">Refresh models</button>
             </div>
+            <select name="{% if prefix == 'researcher_1' %}researcher_model{% elif prefix == 'researcher_2' %}researcher_model_2_raw{% else %}{{ prefix }}_model{% endif %}"
+              data-agent-model="{{ prefix }}"
+              class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none bg-white">
+            </select>
           </div>
         </div>
       </div>
@@ -116,8 +111,9 @@
 </div>
 
 <script>
-  const PROVIDER_MODELS = {{ provider_models | tojson }};
+  const STATIC_MODELS = {{ provider_models | tojson }};
   const CURRENT_PREFS = {{ prefs | tojson }};
+  var liveModels = {};
 
   const AGENT_MAP = {
     planner: { model: CURRENT_PREFS.planner_model, provider: CURRENT_PREFS.planner_provider || CURRENT_PREFS.provider_type },
@@ -126,54 +122,60 @@
     synthesizer: { model: CURRENT_PREFS.synthesizer_model, provider: CURRENT_PREFS.synthesizer_provider || CURRENT_PREFS.provider_type },
   };
 
-  function shortName(m) { return m.split('/').pop(); }
-
-  function populateModels(agentPrefix) {
+  function getProvider(agentPrefix) {
     var provSel = document.querySelector('[data-agent-provider="' + agentPrefix + '"]');
-    var modelSel = document.querySelector('[data-agent-model="' + agentPrefix + '"]');
-    if (!modelSel) return;
-    var provider = (provSel && provSel.value) || CURRENT_PREFS.provider_type;
-    var models = PROVIDER_MODELS[provider] || [];
-    var currentModel = AGENT_MAP[agentPrefix].model;
-    modelSel.innerHTML = '';
-    var customOpt = document.createElement('option');
-    customOpt.value = 'custom';
-    customOpt.textContent = '\u2014 Custom \u2014';
-    modelSel.appendChild(customOpt);
-    models.forEach(function(m) {
-      if (m === 'custom') return;
-      var opt = document.createElement('option');
-      opt.value = m;
-      opt.textContent = shortName(m);
-      if (m === currentModel) opt.selected = true;
-      modelSel.appendChild(opt);
-    });
-    if (!models.includes(currentModel) && currentModel) {
-      customOpt.selected = true;
-    }
-    toggleCustom(modelSel);
+    return (provSel && provSel.value) || CURRENT_PREFS.provider_type;
   }
 
-  function toggleCustom(selectEl) {
-    var customInput = selectEl.parentElement.querySelector('.custom-input');
-    if (customInput) {
-      if (selectEl.value === 'custom') {
-        customInput.classList.remove('hidden');
-      } else {
-        customInput.classList.add('hidden');
+  function getModels(provider) {
+    if (liveModels[provider]) return liveModels[provider];
+    return STATIC_MODELS[provider] || [];
+  }
+
+  function populateModels(agentPrefix) {
+    var modelSel = document.querySelector('[data-agent-model="' + agentPrefix + '"]');
+    if (!modelSel) return;
+    var provider = getProvider(agentPrefix);
+    var models = getModels(provider);
+    var currentModel = AGENT_MAP[agentPrefix].model;
+    modelSel.innerHTML = '';
+    models.forEach(function(m) {
+      var opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = m.name || m.id;
+      if (m.id === currentModel) opt.selected = true;
+      modelSel.appendChild(opt);
+    });
+    if (!models.find(function(m) { return m.id === currentModel; }) && currentModel) {
+      var opt = document.createElement('option');
+      opt.value = currentModel;
+      opt.textContent = currentModel + ' (current)';
+      opt.selected = true;
+      modelSel.insertBefore(opt, modelSel.firstChild);
+    }
+  }
+
+  async function refreshModels(agentPrefix) {
+    var provider = getProvider(agentPrefix);
+    var modelSel = document.querySelector('[data-agent-model="' + agentPrefix + '"]');
+    var currentVal = modelSel.value;
+    try {
+      var resp = await fetch('/api/models/' + provider);
+      var data = await resp.json();
+      if (data.models) {
+        liveModels[provider] = data.models;
+        populateModels(agentPrefix);
+        modelSel.value = currentVal;
       }
+    } catch(e) {
+      alert('Could not fetch models: ' + e.message);
     }
   }
 
   document.querySelectorAll('[data-agent-provider]').forEach(function(el) {
     el.addEventListener('change', function() {
-      var prefix = this.getAttribute('data-agent-provider');
-      populateModels(prefix);
+      populateModels(this.getAttribute('data-agent-provider'));
     });
-  });
-
-  document.querySelectorAll('[data-agent-model]').forEach(function(el) {
-    el.addEventListener('change', function() { toggleCustom(this); });
   });
 
   Object.keys(AGENT_MAP).forEach(function(prefix) { populateModels(prefix); });
