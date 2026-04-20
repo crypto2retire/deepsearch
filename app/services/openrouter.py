@@ -131,6 +131,9 @@ async def call_llm(
     if provider not in LLM_PROVIDERS:
         raise ValueError(f"Unknown provider: {provider}")
 
+    if provider == "openrouter" and model.startswith("openrouter/"):
+        model = model[len("openrouter/"):]
+
     url = LLM_PROVIDERS[provider]
     logger.info(f"LLM call: provider={provider} model={model} url={url}")
 
