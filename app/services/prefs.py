@@ -8,18 +8,18 @@ _cached_prefs: dict | None = None
 _DEFAULTS = {
     "provider_type": os.environ.get("PROVIDER_TYPE", "openrouter"),
     "provider_api_key": os.environ.get("PROVIDER_API_KEY", ""),
-    "planner_model": os.environ.get(
-        "PLANNER_MODEL", "meta-llama/llama-3.1-8b-instruct"
-    ),
-    "researcher_model_1": os.environ.get(
-        "RESEARCHER_MODEL_1", "meta-llama/llama-3.3-70b-instruct"
-    ),
-    "researcher_model_2": os.environ.get(
-        "RESEARCHER_MODEL_2", "anthropic/claude-3.5-sonnet"
-    ),
-    "synthesizer_model": os.environ.get(
-        "SYNTHESIZER_MODEL", "meta-llama/llama-3.3-70b-instruct"
-    ),
+    "planner_model": os.environ.get("PLANNER_MODEL", "meta-llama/llama-3.1-8b-instruct"),
+    "planner_provider": os.environ.get("PLANNER_PROVIDER", "openrouter"),
+    "planner_api_key": os.environ.get("PLANNER_API_KEY", ""),
+    "researcher_model_1": os.environ.get("RESEARCHER_MODEL_1", "meta-llama/llama-3.3-70b-instruct"),
+    "researcher_provider_1": os.environ.get("RESEARCHER_PROVIDER_1", "openrouter"),
+    "researcher_api_key_1": os.environ.get("RESEARCHER_API_KEY_1", ""),
+    "researcher_model_2": os.environ.get("RESEARCHER_MODEL_2", "anthropic/claude-3.5-sonnet"),
+    "researcher_provider_2": os.environ.get("RESEARCHER_PROVIDER_2", "openrouter"),
+    "researcher_api_key_2": os.environ.get("RESEARCHER_API_KEY_2", ""),
+    "synthesizer_model": os.environ.get("SYNTHESIZER_MODEL", "meta-llama/llama-3.3-70b-instruct"),
+    "synthesizer_provider": os.environ.get("SYNTHESIZER_PROVIDER", "openrouter"),
+    "synthesizer_api_key": os.environ.get("SYNTHESIZER_API_KEY", ""),
 }
 
 

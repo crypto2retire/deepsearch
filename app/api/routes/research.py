@@ -73,12 +73,20 @@ async def stream_research(job_id: str):
         try:
             async for event in run_pipeline(
                 query=session.query,
-                api_key=api_key,
+                default_api_key=api_key,
+                default_provider=prefs["provider_type"],
                 planner_model=prefs["planner_model"],
+                planner_provider=prefs.get("planner_provider", ""),
+                planner_api_key=prefs.get("planner_api_key", ""),
                 researcher_model_1=prefs["researcher_model_1"],
+                researcher_provider_1=prefs.get("researcher_provider_1", ""),
+                researcher_api_key_1=prefs.get("researcher_api_key_1", ""),
                 researcher_model_2=prefs["researcher_model_2"],
+                researcher_provider_2=prefs.get("researcher_provider_2", ""),
+                researcher_api_key_2=prefs.get("researcher_api_key_2", ""),
                 synthesizer_model=prefs["synthesizer_model"],
-                provider=prefs["provider_type"],
+                synthesizer_provider=prefs.get("synthesizer_provider", ""),
+                synthesizer_api_key=prefs.get("synthesizer_api_key", ""),
             ):
                 logger.info(f"SSE event: agent={event.get('agent')} status={event.get('status')}")
                 yield {"event": "update", "data": json.dumps(event)}

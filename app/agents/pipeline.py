@@ -23,22 +23,37 @@ async def _with_keepalive(aw, agent_name):
 
 async def run_pipeline(
     query: str,
-    api_key: str,
+    default_api_key: str,
+    default_provider: str,
     planner_model: str,
+    planner_provider: str,
+    planner_api_key: str,
     researcher_model_1: str,
+    researcher_provider_1: str,
+    researcher_api_key_1: str,
     researcher_model_2: str,
+    researcher_provider_2: str,
+    researcher_api_key_2: str,
     synthesizer_model: str,
-    provider: str,
+    synthesizer_provider: str,
+    synthesizer_api_key: str,
 ) -> AsyncGenerator[dict, None]:
     """
-    Run the full pipeline: planner → 2 parallel researchers → synthesizer.
-    Each researcher model processes every sub-task independently; findings are merged.
+    Run the full pipeline: planner -> 2 parallel researchers -> synthesizer.
+    Each agent can use its own provider and API key.
+    Falls back to default_api_key/default_provider if per-agent key is empty.
     """
+    def _key(agent_key: str) -> str:
+        return agent_key or default_api_key
+
+    def _prov(agent_prov: str) -> str:
+        return agent_prov or default_provider
+
     # 1. Planner
     yield {"agent": "planner", "status": "started", "message": "Planning research approach..."}
     logger.info(f"Pipeline started: query={query[:100]}")
     try:
-        plan = await call_planner(query, api_key, planner_model, provider)
+        plan = await call_planner(query, _key(planner_api_key), planner_model, _prov(planner_provider))
     except RuntimeError as e:
         logger.error(f"Planner failed: {e}")
         yield {"agent": "planner", "status": "error", "message": str(e)}
@@ -64,7 +79,7 @@ async def run_pipeline(
         "message": f"Running 2 researcher models across {len(sub_tasks)} tasks...",
     }
 
-    async def research_task(sub_task: dict, model: str) -> dict:
+    async def research_task(sub_task: dict, model: str, provider: str, api_key: str) -> dict:
         try:
             return await call_researcher(
                 sub_task["description"],
@@ -74,13 +89,12 @@ async def run_pipeline(
                 provider,
             )
         except Exception as e:
-            logger.error(f"Research task failed: model={model} sub_task={sub_task.get('id','?')} error={e}")
+            logger.error(f"Research task failed: model={model} provider={provider} sub_task={sub_task.get('id','?')} error={e}")
             return {"error": str(e), "sub_task": sub_task}
 
-    # Fire all tasks for both models simultaneously
     tasks = (
-        [research_task(st, researcher_model_1) for st in sub_tasks]
-        + [research_task(st, researcher_model_2) for st in sub_tasks]
+        [research_task(st, researcher_model_1, _prov(researcher_provider_1), _key(researcher_api_key_1)) for st in sub_tasks]
+        + [research_task(st, researcher_model_2, _prov(researcher_provider_2), _key(researcher_api_key_2)) for st in sub_tasks]
     )
     results = await asyncio.gather(*tasks)
 
@@ -116,7 +130,7 @@ async def run_pipeline(
     # 3. Synthesizer
     yield {"agent": "synthesizer", "status": "started", "message": "Synthesizing answer..."}
     try:
-        result = await call_synthesizer(query, findings, synthesizer_model, api_key, provider)
+        result = await call_synthesizer(query, findings, synthesizer_model, _key(synthesizer_api_key), _prov(synthesizer_provider))
         logger.info(f"Synthesizer completed")
         yield {
             "agent": "synthesizer",

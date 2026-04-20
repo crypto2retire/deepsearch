@@ -41,10 +41,22 @@ async def lifespan(app: FastAPI):
                 for stmt in [
                     "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS researcher_model_1 VARCHAR(200)",
                     "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS researcher_model_2 VARCHAR(200)",
+                    "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS planner_provider VARCHAR(50)",
+                    "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS planner_api_key VARCHAR(500)",
+                    "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS researcher_provider_1 VARCHAR(50)",
+                    "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS researcher_api_key_1 VARCHAR(500)",
+                    "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS researcher_provider_2 VARCHAR(50)",
+                    "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS researcher_api_key_2 VARCHAR(500)",
+                    "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS synthesizer_provider VARCHAR(50)",
+                    "ALTER TABLE global_settings ADD COLUMN IF NOT EXISTS synthesizer_api_key VARCHAR(500)",
                     "UPDATE research_sessions SET user_id = '00000000-0000-0000-0000-000000000000' WHERE user_id IS NULL",
                     "ALTER TABLE research_sessions ALTER COLUMN user_id SET DEFAULT '00000000-0000-0000-0000-000000000000'",
                     "ALTER TABLE research_sessions ALTER COLUMN user_id DROP NOT NULL",
                     "UPDATE research_sessions SET status = 'failed' WHERE status = 'active'",
+                    "UPDATE global_settings SET planner_provider = provider_type WHERE planner_provider IS NULL",
+                    "UPDATE global_settings SET researcher_provider_1 = provider_type WHERE researcher_provider_1 IS NULL",
+                    "UPDATE global_settings SET researcher_provider_2 = provider_type WHERE researcher_provider_2 IS NULL",
+                    "UPDATE global_settings SET synthesizer_provider = provider_type WHERE synthesizer_provider IS NULL",
                 ]:
                     try:
                         await db.execute(text(stmt))
@@ -58,11 +70,19 @@ async def lifespan(app: FastAPI):
                         "provider_type": row.provider_type,
                         "provider_api_key": row.provider_api_key,
                         "planner_model": row.planner_model,
+                        "planner_provider": row.planner_provider or row.provider_type,
+                        "planner_api_key": row.planner_api_key or "",
                         "researcher_model_1": row.researcher_model_1 or _DEFAULTS["researcher_model_1"],
+                        "researcher_provider_1": row.researcher_provider_1 or row.provider_type,
+                        "researcher_api_key_1": row.researcher_api_key_1 or "",
                         "researcher_model_2": row.researcher_model_2 or _DEFAULTS["researcher_model_2"],
+                        "researcher_provider_2": row.researcher_provider_2 or row.provider_type,
+                        "researcher_api_key_2": row.researcher_api_key_2 or "",
                         "synthesizer_model": row.synthesizer_model,
+                        "synthesizer_provider": row.synthesizer_provider or row.provider_type,
+                        "synthesizer_api_key": row.synthesizer_api_key or "",
                     })
-                    logger.info(f"Loaded prefs from DB: provider={row.provider_type} planner={row.planner_model}")
+                    logger.info(f"Loaded prefs from DB: provider={row.provider_type} planner={row.planner_model} planner_prov={row.planner_provider}")
                 else:
                     set_global_prefs(_DEFAULTS.copy())
                 break

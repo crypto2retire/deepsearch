@@ -21,99 +21,95 @@
     </div>
     {% endif %}
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-      <form method="post" class="space-y-6">
+    <form method="post" class="space-y-6">
 
-        <!-- Provider -->
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-2">LLM Provider</label>
-          <select name="provider_type" id="provider-select"
-            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-            onchange="onProviderChange()">
-            {% for p in providers %}
-            <option value="{{ p.id }}" {% if provider_selected == p.id %}selected{% endif %}>{{ p.label }}</option>
-            {% endfor %}
-          </select>
+      <!-- Default Provider (fallback for agents without overrides) -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 class="text-base font-semibold text-gray-800 mb-4">Default Provider</h3>
+        <p class="text-xs text-gray-400 mb-4">Used as fallback when an agent doesn't have its own provider/key set.</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+            <select name="provider_type" id="default-provider"
+              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
+              {% for p in providers %}
+              <option value="{{ p.id }}" {% if provider_selected == p.id %}selected{% endif %}>{{ p.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+            <input type="password" name="provider_api_key"
+              value="{{ prefs.provider_api_key or '' }}"
+              placeholder="sk-or-v1-..."
+              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent cards -->
+      {% set agents = [
+        ("Planner", "planner", "Breaks down your query", prefs.planner_model, prefs.planner_provider, prefs.planner_api_key),
+        ("Researcher 1", "researcher_1", "Primary research arm", prefs.researcher_model_1, prefs.researcher_provider_1, prefs.researcher_api_key_1),
+        ("Researcher 2", "researcher_2", "Parallel research arm", prefs.researcher_model_2, prefs.researcher_provider_2, prefs.researcher_api_key_2),
+        ("Synthesizer", "synthesizer", "Writes the final answer", prefs.synthesizer_model, prefs.synthesizer_provider, prefs.synthesizer_api_key),
+      ] %}
+
+      {% for label, prefix, desc, model_val, prov_val, key_val in agents %}
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-base font-semibold text-gray-800">{{ label }}</h3>
+          <span class="text-xs text-gray-400">{{ desc }}</span>
         </div>
 
-        <!-- API Key -->
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-2">
-            API Key
-            <span class="text-gray-400 font-normal ml-1">— stored in database</span>
-          </label>
-          <input type="password" name="provider_api_key"
-            value="{{ prefs.provider_api_key or '' }}"
-            placeholder="sk-or-v1-...  or  sk-ant-..."
-            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+        <div class="space-y-3">
+          <!-- Override provider + key -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Provider <span class="text-gray-300">(override)</span></label>
+              <select name="{{ prefix }}_provider" data-agent-provider="{{ prefix }}"
+                class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none bg-white">
+                <option value="">Use default</option>
+                {% for p in providers %}
+                <option value="{{ p.id }}" {% if prov_val == p.id %}selected{% endif %}>{{ p.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">API Key <span class="text-gray-300">(override)</span></label>
+              <input type="password" name="{{ prefix }}_api_key"
+                value="{{ key_val or '' }}"
+                placeholder="Leave blank to use default key"
+                class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none" />
+            </div>
+          </div>
+
+          <!-- Model select -->
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Model</label>
+            <div class="flex gap-2">
+              <select name="{% if prefix == 'researcher_1' %}researcher_model{% elif prefix == 'researcher_2' %}researcher_model_2_raw{% else %}{{ prefix }}_model{% endif %}"
+                data-agent-model="{{ prefix }}"
+                class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none bg-white">
+                <option value="custom">— Custom —</option>
+              </select>
+              <input type="text" name="{% if prefix == 'researcher_1' %}researcher_custom{% elif prefix == 'researcher_2' %}researcher_model_2_custom{% else %}{{ prefix }}_custom{% endif %}"
+                placeholder="e.g. meta-llama/llama-3.1-8b-instruct"
+                class="custom-input flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none hidden" />
+            </div>
+          </div>
         </div>
+      </div>
+      {% endfor %}
 
-        <!-- Planner Model -->
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-2">Planner Model <span class="text-gray-400 font-normal">— breaks down your query</span></label>
-          <select name="planner_model" id="planner-select"
-            class="model-select w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white mb-2"
-            onchange="onModelCustomToggle(this)">
-            <option value="custom">— Custom model —</option>
-          </select>
-          <input type="text" name="planner_custom" id="planner-custom"
-            placeholder="e.g. meta-llama/llama-3.1-8b-instruct"
-            class="custom-input w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none hidden" />
-        </div>
+      <button type="submit"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition">
+        Save Settings
+      </button>
+    </form>
 
-        <!-- Researcher Model 1 -->
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-2">
-            Researcher Model 1 <span class="text-gray-400 font-normal">— primary research arm</span>
-          </label>
-          <select name="researcher_model" id="researcher-select"
-            class="model-select w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white mb-2"
-            onchange="onModelCustomToggle(this)">
-            <option value="custom">— Custom model —</option>
-          </select>
-          <input type="text" name="researcher_custom" id="researcher-custom"
-            placeholder="e.g. meta-llama/llama-3.3-70b-instruct"
-            class="custom-input w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none hidden" />
-        </div>
-
-        <!-- Researcher Model 2 -->
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-2">
-            Researcher Model 2 <span class="text-gray-400 font-normal">— parallel research arm, merges findings</span>
-          </label>
-          <select name="researcher_model_2_raw" id="researcher2-select"
-            class="model-select w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white mb-2"
-            onchange="onModelCustomToggle(this)">
-            <option value="custom">— Custom model —</option>
-          </select>
-          <input type="text" name="researcher_model_2_custom" id="researcher2-custom"
-            placeholder="e.g. anthropic/claude-3.5-sonnet"
-            class="custom-input w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none hidden" />
-        </div>
-
-        <!-- Synthesizer Model -->
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-2">Synthesizer Model <span class="text-gray-400 font-normal">— writes the final answer</span></label>
-          <select name="synthesizer_model" id="synthesizer-select"
-            class="model-select w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white mb-2"
-            onchange="onModelCustomToggle(this)">
-            <option value="custom">— Custom model —</option>
-          </select>
-          <input type="text" name="synthesizer_custom" id="synthesizer-custom"
-            placeholder="e.g. meta-llama/llama-3.3-70b-instruct"
-            class="custom-input w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-400 outline-none hidden" />
-        </div>
-
-        <button type="submit"
-          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition">
-          Save Settings
-        </button>
-
-      </form>
-    </div>
-
-    <div class="bg-amber-50 rounded-xl border border-amber-200 p-4 text-sm text-amber-700">
-      <strong>Note:</strong> Tavily search is powered by <code class="bg-amber-100 px-1 rounded">TAVILY_API_KEY</code>
+    <div class="bg-amber-50 rounded-xl border border-amber-200 p-4 text-sm text-amber-700 mt-6">
+      <strong>Note:</strong> Tavily search requires <code class="bg-amber-100 px-1 rounded">TAVILY_API_KEY</code>
       set in Railway Variables. Research will fail if that key is missing.
     </div>
   </main>
@@ -123,14 +119,44 @@
   const PROVIDER_MODELS = {{ provider_models | tojson }};
   const CURRENT_PREFS = {{ prefs | tojson }};
 
-  function shortName(model) {
-    // Show only the last path segment for readability
-    return model.split('/').pop();
+  const AGENT_MAP = {
+    planner: { model: CURRENT_PREFS.planner_model, provider: CURRENT_PREFS.planner_provider || CURRENT_PREFS.provider_type },
+    researcher_1: { model: CURRENT_PREFS.researcher_model_1, provider: CURRENT_PREFS.researcher_provider_1 || CURRENT_PREFS.provider_type },
+    researcher_2: { model: CURRENT_PREFS.researcher_model_2, provider: CURRENT_PREFS.researcher_provider_2 || CURRENT_PREFS.provider_type },
+    synthesizer: { model: CURRENT_PREFS.synthesizer_model, provider: CURRENT_PREFS.synthesizer_provider || CURRENT_PREFS.provider_type },
+  };
+
+  function shortName(m) { return m.split('/').pop(); }
+
+  function populateModels(agentPrefix) {
+    var provSel = document.querySelector('[data-agent-provider="' + agentPrefix + '"]');
+    var modelSel = document.querySelector('[data-agent-model="' + agentPrefix + '"]');
+    if (!modelSel) return;
+    var provider = (provSel && provSel.value) || CURRENT_PREFS.provider_type;
+    var models = PROVIDER_MODELS[provider] || [];
+    var currentModel = AGENT_MAP[agentPrefix].model;
+    modelSel.innerHTML = '';
+    var customOpt = document.createElement('option');
+    customOpt.value = 'custom';
+    customOpt.textContent = '\u2014 Custom \u2014';
+    modelSel.appendChild(customOpt);
+    models.forEach(function(m) {
+      if (m === 'custom') return;
+      var opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = shortName(m);
+      if (m === currentModel) opt.selected = true;
+      modelSel.appendChild(opt);
+    });
+    if (!models.includes(currentModel) && currentModel) {
+      customOpt.selected = true;
+    }
+    toggleCustom(modelSel);
   }
 
-  function onModelCustomToggle(selectEl) {
-    const customInput = selectEl.parentElement.nextElementSibling;
-    if (customInput && customInput.classList.contains('custom-input')) {
+  function toggleCustom(selectEl) {
+    var customInput = selectEl.parentElement.querySelector('.custom-input');
+    if (customInput) {
       if (selectEl.value === 'custom') {
         customInput.classList.remove('hidden');
       } else {
@@ -139,54 +165,17 @@
     }
   }
 
-  function populateSelect(selectEl, models, currentValue) {
-    const existingCustom = selectEl.querySelector('option[value="custom"]');
-    selectEl.innerHTML = '';
-    if (existingCustom) {
-      const opt = document.createElement('option');
-      opt.value = 'custom';
-      opt.textContent = '— Custom model —';
-      selectEl.appendChild(opt);
-    }
-    models.forEach(function(model) {
-      if (model === 'custom') return;
-      const opt = document.createElement('option');
-      opt.value = model;
-      opt.textContent = shortName(model);
-      if (model === currentValue) opt.selected = true;
-      selectEl.appendChild(opt);
+  document.querySelectorAll('[data-agent-provider]').forEach(function(el) {
+    el.addEventListener('change', function() {
+      var prefix = this.getAttribute('data-agent-provider');
+      populateModels(prefix);
     });
-    // Add custom option back if not present
-    if (!selectEl.querySelector('option[value="custom"]')) {
-      const opt = document.createElement('option');
-      opt.value = 'custom';
-      opt.textContent = '— Custom model —';
-      if (currentValue === 'custom' || !models.includes(currentValue)) opt.selected = true;
-      selectEl.insertBefore(opt, selectEl.firstChild);
-    }
-    onModelCustomToggle(selectEl);
-  }
+  });
 
-  function onProviderChange() {
-    const provider = document.getElementById('provider-select').value;
-    const models = PROVIDER_MODELS[provider] || [];
-    document.querySelectorAll('.model-select').forEach(function(sel) {
-      populateSelect(sel, models, '');
-    });
-  }
+  document.querySelectorAll('[data-agent-model]').forEach(function(el) {
+    el.addEventListener('change', function() { toggleCustom(this); });
+  });
 
-  // Initial population
-  (function() {
-    const provider = CURRENT_PREFS.provider_type || 'openrouter';
-    const models = PROVIDER_MODELS[provider] || [];
-    // Planner
-    populateSelect(document.getElementById('planner-select'), models, CURRENT_PREFS.planner_model || '');
-    // Researcher 1
-    populateSelect(document.getElementById('researcher-select'), models, CURRENT_PREFS.researcher_model_1 || '');
-    // Researcher 2
-    populateSelect(document.getElementById('researcher2-select'), models, CURRENT_PREFS.researcher_model_2 || '');
-    // Synthesizer
-    populateSelect(document.getElementById('synthesizer-select'), models, CURRENT_PREFS.synthesizer_model || '');
-  })();
+  Object.keys(AGENT_MAP).forEach(function(prefix) { populateModels(prefix); });
 </script>
 {% endblock %}
