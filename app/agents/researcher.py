@@ -43,4 +43,5 @@ def call_researcher(sub_task_desc: str, search_query: str, model: str, api_key: 
         "search_results": search_results,
         "findings": findings.get("facts", []),
         "sub_task": sub_task_desc,
+        "model": model,
     }
