@@ -5,7 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
-from sqlalchemy import select, text
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload, text
 import json
 
 from app.config import get_settings
@@ -142,7 +143,9 @@ async def start_research(request: Request):
 async def view_research(request: Request, job_id: str):
     async for db in get_db():
         result = await db.execute(
-            select(ResearchSession).where(ResearchSession.id == job_id)
+            select(ResearchSession)
+            .options(selectinload(ResearchSession.answer))
+            .where(ResearchSession.id == job_id)
         )
         session = result.scalar_one_or_none()
         if not session:

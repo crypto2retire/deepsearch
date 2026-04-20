@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Form
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sse_starlette.sse import EventSourceResponse
 from app.database import get_db
 from app.models.research import ResearchSession, ResearchFinding, ResearchAnswer, SessionStatus
@@ -120,7 +121,11 @@ async def stream_research(job_id: str):
 @router.get("/{job_id}")
 async def get_research(job_id: str) -> dict:
     async for db in get_db():
-        result = await db.execute(select(ResearchSession).where(ResearchSession.id == job_id))
+        result = await db.execute(
+            select(ResearchSession)
+            .options(selectinload(ResearchSession.answer))
+            .where(ResearchSession.id == job_id)
+        )
         session = result.scalar_one_or_none()
         if not session:
             raise HTTPException(status_code=404, detail="Research job not found")
