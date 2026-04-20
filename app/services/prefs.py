@@ -9,16 +9,16 @@ _DEFAULTS = {
     "provider_type": os.environ.get("PROVIDER_TYPE", "openrouter"),
     "provider_api_key": os.environ.get("PROVIDER_API_KEY", ""),
     "planner_model": os.environ.get(
-        "PLANNER_MODEL", "openrouter/meta-llama/llama-3.1-8b-instruct"
+        "PLANNER_MODEL", "meta-llama/llama-3.1-8b-instruct"
     ),
     "researcher_model_1": os.environ.get(
-        "RESEARCHER_MODEL_1", "openrouter/meta-llama/llama-3.3-70b-instruct"
+        "RESEARCHER_MODEL_1", "meta-llama/llama-3.3-70b-instruct"
     ),
     "researcher_model_2": os.environ.get(
-        "RESEARCHER_MODEL_2", "openrouter/anthropic/claude-3.5-sonnet"
+        "RESEARCHER_MODEL_2", "anthropic/claude-3.5-sonnet"
     ),
     "synthesizer_model": os.environ.get(
-        "SYNTHESIZER_MODEL", "openrouter/meta-llama/llama-3.3-70b-instruct"
+        "SYNTHESIZER_MODEL", "meta-llama/llama-3.3-70b-instruct"
     ),
 }
 
