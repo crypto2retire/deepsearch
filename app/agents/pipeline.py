@@ -22,8 +22,11 @@ async def run_pipeline(
     yield {"agent": "planner", "status": "started", "message": "Planning research approach..."}
     try:
         plan = call_planner(query, api_key, planner_model, provider)
+    except RuntimeError as e:
+        yield {"agent": "planner", "status": "error", "message": str(e)}
+        return
     except Exception as e:
-        yield {"agent": "planner", "status": "error", "message": f"Planner failed: {e}"}
+        yield {"agent": "planner", "status": "error", "message": f"Planner failed unexpectedly: {e}"}
         return
 
     sub_tasks = plan.get("sub_tasks", [])
@@ -96,5 +99,7 @@ async def run_pipeline(
             "message": "Synthesis complete",
             "result": result,
         }
+    except RuntimeError as e:
+        yield {"agent": "synthesizer", "status": "error", "message": str(e)}
     except Exception as e:
-        yield {"agent": "synthesizer", "status": "error", "message": f"Synthesizer failed: {e}"}
+        yield {"agent": "synthesizer", "status": "error", "message": f"Synthesizer failed unexpectedly: {e}"}

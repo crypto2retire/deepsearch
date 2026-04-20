@@ -20,6 +20,7 @@ def call_llm(
     """
     Call an LLM via OpenRouter-compatible or Z.ai/MiniMax API.
     Returns the assistant's response text.
+    Raises RuntimeError with details on timeout or API error.
     """
     if provider not in LLM_PROVIDERS:
         raise ValueError(f"Unknown provider: {provider}")
@@ -36,18 +37,28 @@ def call_llm(
         "temperature": temperature,
     }
 
-    # MiniMax uses a different param name
     if provider == "minimax":
         payload["model"] = model
         headers.pop("Content-Type", None)
-        # MiniMax also wraps in a slightly different structure
         payload["messages"] = messages
 
-    with httpx.Client(timeout=60.0) as client:
-        response = client.post(url, json=payload, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+    try:
+        with httpx.Client(timeout=httpx.Timeout(30.0, read=90.0)) as client:
+            response = client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            if "choices" not in data:
+                raise RuntimeError(f"Unexpected API response (no choices): {str(data)[:200]}")
+            content = data["choices"][0].get("message", {}).get("content", "")
+            if not content:
+                raise RuntimeError(f"Empty response from {provider} for model {model}")
+            return content
+    except httpx.TimeoutException:
+        raise RuntimeError(f"Timeout calling {provider} model '{model}'. Try a faster/smaller model.")
+    except httpx.HTTPStatusError as e:
+        raise RuntimeError(f"HTTP {e.response.status_code} from {provider}: {e.response.text[:300]}")
+    except Exception as e:
+        raise RuntimeError(f"LLM call failed ({provider}/{model}): {str(e)[:200]}")
 
 
 def structured_call(
@@ -57,13 +68,18 @@ def structured_call(
     provider: str = "openrouter",
     temperature: float = 0.2,
 ) -> dict:
-    """Call LLM and parse JSON response."""
+    """Call LLM and parse JSON response. Raises RuntimeError on failure."""
     text = call_llm(model, messages, api_key, provider, temperature)
-    # Try to extract JSON from markdown code blocks if present
     text = text.strip()
+    # Strip markdown code fences
     if text.startswith("```"):
-        text = text.split("```")[1]
-        if text.startswith("json"):
-            text = text[4:]
-        text = text.strip()
-    return json.loads(text)
+        parts = text.split("```", 2)
+        if len(parts) >= 3:
+            text = parts[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Planner returned non-JSON response: {str(e)[:100]} — raw: {text[:200]}")
