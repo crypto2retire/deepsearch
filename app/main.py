@@ -6,7 +6,7 @@ from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from sqlalchemy import select, text
-from sqlalchemy.orm import selectinload, text
+from sqlalchemy.orm import selectinload
 import json
 
 from app.config import get_settings
