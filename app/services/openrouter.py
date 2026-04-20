@@ -24,6 +24,7 @@ async def _call_openai_compatible(url: str, model: str, messages: list[dict], ap
         "model": model,
         "messages": messages,
         "temperature": temperature,
+        "max_tokens": 4096,
     }
     async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=90.0)) as client:
         response = await client.post(url, json=payload, headers=headers)
@@ -168,7 +169,6 @@ async def structured_call(
     """Call LLM and parse JSON response. Raises RuntimeError on failure."""
     text = await call_llm(model, messages, api_key, provider, temperature)
     text = text.strip()
-    # Strip markdown code fences
     if text.startswith("```"):
         parts = text.split("```", 2)
         if len(parts) >= 3:
@@ -178,5 +178,26 @@ async def structured_call(
             text = text.strip()
     try:
         return json.loads(text)
-    except json.JSONDecodeError as e:
-        raise RuntimeError(f"Planner returned non-JSON response: {str(e)[:100]} — raw: {text[:200]}")
+    except json.JSONDecodeError:
+        pass
+
+    if text.rstrip().endswith("}]"):
+        pass
+    elif text.rstrip().endswith("}"):
+        text = text.rstrip() + "]}"
+    elif text.rstrip().endswith('"'):
+        text = text.rstrip() + '"}]}'
+    elif text.rstrip().endswith(","):
+        text = text.rstrip() + "]}"
+    else:
+        for closing in [']}', '"}]}}', '"]}}', '"}]}', '"}]}]}']:
+            try:
+                return json.loads(text + closing)
+            except json.JSONDecodeError:
+                continue
+        raise RuntimeError(f"LLM returned truncated/invalid JSON. Raw: {text[:300]}")
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        raise RuntimeError(f"LLM returned truncated/invalid JSON. Raw: {text[:300]}")
