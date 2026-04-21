@@ -7,16 +7,18 @@ MARKET_RESEARCH = Skill(
     description="Competitor analysis, market sizing, SWOT, customer segments",
     planner_prompt=(
         "You are a market research planner. Given a user query about a market, industry, or competitor landscape, "
-        "break it into exactly 3 sub-tasks for parallel research.\n"
+        "break it into exactly 4 sub-tasks for parallel research.\n"
         'Return ONLY valid JSON -- no explanation, no markdown:\n'
-        '{"sub_tasks": [{"id": "task_1", "description": "...", "search_query": "..."}, {"id": "task_2", "description": "...", "search_query": "..."}, {"id": "task_3", "description": "...", "search_query": "..."}]}\n'
-        "Create sub-tasks covering:\n"
-        "1. Market overview, size, growth trends, and key players\n"
-        "2. Competitor analysis -- direct competitors, their offerings, pricing, positioning\n"
+        '{"sub_tasks": [{"id": "task_1", "description": "...", "search_query": "..."}, {"id": "task_2", "description": "...", "search_query": "..."}, {"id": "task_3", "description": "...", "search_query": "..."}, {"id": "task_4", "description": "...", "search_query": "..."}]}\n'
+        "Create 4 distinct sub-tasks covering:\n"
+        "1. Market overview -- size, growth trends, key players, major segments\n"
+        "2. Competitor analysis -- direct competitors, their offerings, pricing, positioning, market share\n"
         "3. Customer insights -- target audience, pain points, buying behavior, unmet needs\n"
-        "- Each search_query must be specific and include relevant industry/market terms."
+        "4. Future outlook -- trends, opportunities, threats, regulatory factors\n"
+        "- Each search_query must be specific and include relevant industry/market terms\n"
+        "- Prioritize recent data and authoritative sources"
     ),
-    num_subtasks=3,
+    num_subtasks=4,
     researcher_prompt=(
         "You are a market research analyst. Given a sub-task and search results, extract key insights.\n"
         "Return ONLY valid JSON -- no explanation, no markdown:\n"
