@@ -4,6 +4,7 @@ from app.skills.market_research import MARKET_RESEARCH
 from app.skills.stock_crypto import STOCK_CRYPTO
 from app.skills.social_content import SOCIAL_CONTENT
 from app.skills.youtube_video import YOUTUBE_VIDEO
+from app.skills.coding import CODING
 
 ALL_SKILLS: list[Skill] = [
     GENERAL,
@@ -11,6 +12,7 @@ ALL_SKILLS: list[Skill] = [
     STOCK_CRYPTO,
     SOCIAL_CONTENT,
     YOUTUBE_VIDEO,
+    CODING,
 ]
 
 SKILL_MAP: dict[str, Skill] = {s.id: s for s in ALL_SKILLS}

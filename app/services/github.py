@@ -3,6 +3,8 @@ import logging
 import subprocess
 import tempfile
 import shutil
+import json
+import urllib.request
 from typing import Optional
 
 logger = logging.getLogger("deepsearch.github")
@@ -41,7 +43,6 @@ async def clone_repo(repo_url: str, target_dir: str) -> str:
 async def create_repo(repo_name: str, description: str = "") -> str:
     """Create a new public GitHub repo. Returns the repo URL."""
     pat = _require_pat()
-    import urllib.request
     data = json.dumps({
         "name": repo_name,
         "description": description or f"Created by DeepSearch Coding Mode",
@@ -136,7 +137,6 @@ async def push_to_existing(repo_url: str, branch: str, files: dict[str, str], co
         repo_name = await clone_repo(repo_url, tmpdir)
         # Create branch if needed
         pat = _require_pat()
-        import urllib.request
         user_resp = urllib.request.urlopen(
             urllib.request.Request(
                 "https://api.github.com/user",

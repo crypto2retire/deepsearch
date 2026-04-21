@@ -13,7 +13,7 @@ import json
 
 from app.config import get_settings
 from app.database import _get_engine, Base, get_db
-from app.api.routes import research, settings as settings_router, health
+from app.api.routes import research, settings as settings_router, health, coding
 from app.models.research import ResearchSession, SessionStatus, GlobalSetting
 from app.services.prefs import get_global_llm_prefs, set_global_prefs, _DEFAULTS
 from app.skills import ALL_SKILLS
@@ -39,6 +39,8 @@ def _detect_skill(query: str) -> str:
         return "market_research"
     if re.search(r"\byoutube\s*video|video\s*script|outube\b", q):
         return "youtube_video"
+    if re.search(r"\b(build|create a|code|make a|write program|implement|clone and|fix bug in)\b", q):
+        return "coding"
     return "general"
 
 
@@ -136,6 +138,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(research.router)
 app.include_router(settings_router.router)
+app.include_router(coding.router)
 
 
 @app.get("/", response_class=HTMLResponse)

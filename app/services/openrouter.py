@@ -13,6 +13,7 @@ LLM_PROVIDERS = {
     "google": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
     "minimax": "https://api.minimax.chat/v1/text/chatcompletion_v2",
     "z.ai": "https://api.z.ai/api/coding/paas/v4/chat/completions",
+    "moonshot": "https://api.moonshot.cn/v1/chat/completions",
 }
 
 
@@ -139,7 +140,7 @@ async def call_llm(
     logger.info(f"LLM call: provider={provider} model={model} url={url}")
 
     try:
-        if provider in ("openrouter", "openai", "z.ai"):
+        if provider in ("openrouter", "openai", "z.ai", "moonshot"):
             result = await _call_openai_compatible(url, model, messages, api_key, temperature)
         elif provider == "anthropic":
             result = await _call_anthropic(model, messages, api_key, temperature)
