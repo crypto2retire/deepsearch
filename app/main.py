@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
                     "UPDATE research_sessions SET user_id = '00000000-0000-0000-0000-000000000000' WHERE user_id IS NULL",
                     "ALTER TABLE research_sessions ALTER COLUMN user_id SET DEFAULT '00000000-0000-0000-0000-000000000000'",
                     "ALTER TABLE research_sessions ALTER COLUMN user_id DROP NOT NULL",
-                    "UPDATE research_sessions SET status = 'failed' WHERE status = 'active'",
+                    "UPDATE research_sessions SET status = 'FAILED' WHERE status = 'ACTIVE'",
                     "UPDATE research_sessions SET skill = 'general' WHERE skill IS NULL",
                     "UPDATE global_settings SET planner_provider = provider_type WHERE planner_provider IS NULL",
                     "UPDATE global_settings SET researcher_provider_1 = provider_type WHERE researcher_provider_1 IS NULL",
