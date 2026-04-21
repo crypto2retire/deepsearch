@@ -231,16 +231,13 @@ async def view_research(request: Request, job_id: str):
 
         return templates.TemplateResponse(
             request,
-            "research/dashboard.html",
+            "research/detail.html",
             {
-                "history": history,
-                "result": {
-                    "id": session.id,
-                    "query": session.query,
-                    "status": session.status.value,
-                    "answer_markdown": answer_data or "",
-                    "follow_up_questions": follow_ups,
-                },
-                "skills": ALL_SKILLS,
+                "query": session.query,
+                "status": session.status.value,
+                "answer": answer_data or "",
+                "citations": [],
+                "follow_ups": follow_ups,
+                "skill": getattr(session, 'skill', 'general') or 'general',
             },
         )
