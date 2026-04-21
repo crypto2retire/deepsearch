@@ -10,9 +10,12 @@ YOUTUBE_VIDEO = Skill(
         "break it into exactly 2 sub-tasks for parallel research.\n"
         'Return ONLY valid JSON -- no explanation, no markdown:\n'
         '{"sub_tasks": [{"id": "task_1", "description": "...", "search_query": "..."}, {"id": "task_2", "description": "...", "search_query": "..."}]}\n'
-        "task_1: Research the main topic -- key facts, statistics, expert opinions, recent developments.\n"
-        "task_2: Research the audience -- what viewers of this topic care about, common questions, engaging angles.\n"
-        "- Each search_query must be specific and include relevant topic terms."
+        "IMPORTANT SEARCH QUERY RULES:\n"
+        "- task_1: Research the main topic -- key facts, statistics, expert opinions, recent developments\n"
+        "- task_2: Research the audience -- what viewers of this topic care about, common questions, engaging angles\n"
+        "- ALWAYS include specific topic terms -- not 'video about X' but 'X facts', 'X explained', 'X latest news'\n"
+        "- Search queries must sound like YouTube search queries -- e.g. 'how does Bitcoin mining work 2025' not 'Bitcoin'\n"
+        "- Include year or time frame when asking about current information\n"
     ),
     num_subtasks=2,
     researcher_prompt=(
@@ -24,6 +27,7 @@ YOUTUBE_VIDEO = Skill(
         "- Expert opinions and quotes\n"
         "- Audience-relevant angles and questions\n"
         "- Recent news or developments\n"
+        "IMPORTANT: Only extract facts that appear in the search results. Do NOT make up statistics or quotes.\n"
         "Return up to 7 facts with source URLs."
     ),
     synthesizer_prompt=(
@@ -41,7 +45,7 @@ YOUTUBE_VIDEO = Skill(
         "- Include [INTRO], [HOOK], [MAIN CONTENT], [OUTRO] section markers\n"
         "- Script should be 4-7 minutes long when spoken aloud\n"
         "- Use conversational tone -- how a real YouTuber would talk\n"
-        "- Include specific facts, examples, and data points from research\n"
+        "- Include specific facts, examples, and data points from research -- do not invent details\n"
         "- Use [1][2] inline citations in the script where facts are mentioned\n"
         "- sources list all cited sources with number, title, and URL\n"
         "- follow_up_questions should be empty"
