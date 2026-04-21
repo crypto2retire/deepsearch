@@ -12,8 +12,9 @@
     </nav>
   </header>
 
-  <main class="flex-1 max-w-5xl mx-auto w-full px-6 py-8">
+  <main class="flex-1 max-w-5xl mx-auto w-full px-6 py-8" id="main-content">
     {% if status == "completed" and answer %}
+    <!-- Completed: show result -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-gray-900">{{ query }}</h2>
@@ -29,11 +30,7 @@
         {% for c in citations %}
         <li>
           <span class="text-gray-500 mr-1">[{{ loop.index }}]</span>
-          {% if c.url %}
-          <a href="{{ c.url }}" target="_blank" class="text-blue-600 hover:underline">{{ c.title or c.url }}</a>
-          {% else %}
-          <span class="text-gray-700">{{ c.title or c }}</span>
-          {% endif %}
+          {% if c.url %}<a href="{{ c.url }}" target="_blank" class="text-blue-600 hover:underline">{{ c.title or c.url }}</a>{% else %}<span class="text-gray-700">{{ c.title or c }}</span>{% endif %}
         </li>
         {% endfor %}
       </ol>
@@ -55,13 +52,9 @@
       <h3 class="text-sm font-semibold text-gray-700 mb-3">Ask a Follow-up Question</h3>
       <div class="flex gap-3">
         <input type="hidden" id="follow-skill" value="{{ skill | default('general') }}" />
-        <input
-          type="text"
-          id="follow-query-input"
-          placeholder="Ask a personalized follow-up question..."
+        <input type="text" id="follow-query-input" placeholder="Ask a personalized follow-up question..."
           class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-base"
-          style="font-size:16px"
-        />
+          style="font-size:16px" />
         <button type="button" id="follow-btn"
           class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition">
           Ask
@@ -69,89 +62,147 @@
       </div>
     </div>
 
-    {% elif status == "failed" %}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900">{{ query }}</h2>
-        <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">Failed</span>
-      </div>
-      <p class="text-sm text-red-600">This research session failed. Please try again.</p>
-    </div>
-
     {% else %}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6" id="loading-card">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900">{{ query }}</h2>
-        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full" id="status-badge">{{ status }}</span>
-      </div>
-      <div id="loading-content">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-          <span class="text-sm text-gray-500">Research in progress, please wait...</span>
+    <!-- Not completed: show live stream UI -->
+    <div id="stream-ui">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-900" id="query-display">{{ query }}</h2>
+          <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full" id="status-badge">{{ status }}</span>
         </div>
-        <div class="text-xs text-gray-400">This page will automatically update when complete.</div>
+        <div class="flex items-center gap-3 mb-2">
+          <div class="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+          <span class="text-sm text-gray-500" id="status-text">Research in progress...</span>
+        </div>
       </div>
+      <div id="results-area" class="space-y-4"></div>
     </div>
     {% endif %}
-
-<script>
-(function() {
-  var status = "{{ status }}";
-  if (status === "pending" || status === "active") {
-    var pollInterval = setInterval(async function() {
-      try {
-        var res = await fetch('/research/{{ job_id }}');
-        if (res.ok) {
-          var data = await res.json();
-          if (data.status === "completed") {
-            clearInterval(pollInterval);
-            window.location.reload();
-          } else if (data.status === "failed") {
-            clearInterval(pollInterval);
-            window.location.reload();
-          }
-        }
-      } catch(e) {}
-    }, 5000);
-  }
-})();
-</script>
   </main>
 </div>
+
 <script>
+var jobId = window.location.pathname.split('/').pop();
+
+{% if status != "completed" %}
+// Live SSE stream
+var streamConnected = false;
+
+function connectSSE() {
+  if (streamConnected) return;
+  streamConnected = true;
+  var es = new EventSource('/research/' + jobId + '/stream');
+  es.onmessage = function(e) {
+    try {
+      var data = JSON.parse(e.data);
+      handleEvent(data);
+    } catch(err) { console.error('SSE parse error:', err); }
+  };
+  es.onerror = function() {
+    streamConnected = false;
+    // Retry connection after 3s
+    setTimeout(connectSSE, 3000);
+  };
+}
+
+function handleEvent(data) {
+  var agent = data.agent;
+  var status = data.status;
+  var area = document.getElementById('results-area');
+  var badge = document.getElementById('status-badge');
+  var text = document.getElementById('status-text');
+
+  if (agent === 'planner') {
+    if (status === 'started') {
+      area.innerHTML += '<div id="planner-card" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4"><div class="text-xs font-semibold text-amber-600 uppercase mb-2">Planner</div><div id="planner-content" class="text-sm text-gray-700">Planning...</div></div>';
+    }
+    if (status === 'completed') {
+      var el = document.getElementById('planner-content');
+      var tasks = (data.plan && data.plan.sub_tasks) || [];
+      if (el) el.innerHTML = tasks.map(function(t) { return '<div class="mb-1">• <span class="text-gray-900">' + (t.description || t.sub_task || t) + '</span></div>'; }).join('');
+    }
+    if (status === 'error') {
+      var el = document.getElementById('planner-content');
+      if (el) el.innerHTML = '<span class="text-red-600">Error: ' + (data.message || 'failed') + '</span>';
+    }
+  }
+  if (agent === 'researcher') {
+    if (status === 'started') {
+      area.innerHTML += '<div id="researcher-card" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4"><div class="text-xs font-semibold text-blue-600 uppercase mb-2">Researcher</div><div id="researcher-content" class="text-sm text-gray-700">Researching...</div></div>';
+    }
+    if (status === 'completed') {
+      var el = document.getElementById('researcher-content');
+      if (el) el.innerHTML = '<span class="text-green-600">✓</span> ' + (data.findings || []).length + ' sources researched';
+    }
+    if (status === 'error') {
+      var el = document.getElementById('researcher-content');
+      if (el) el.innerHTML = '<span class="text-red-600">Error: ' + (data.message || 'failed') + '</span>';
+    }
+  }
+  if (agent === 'synthesizer') {
+    if (status === 'started') {
+      area.innerHTML += '<div id="synthesizer-card" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4"><div class="text-xs font-semibold text-emerald-600 uppercase mb-2">Synthesizer</div><div id="synthesizer-content" class="text-sm text-gray-700">Synthesizing...</div></div>';
+    }
+    if (status === 'completed') {
+      var el = document.getElementById('synthesizer-content');
+      if (el && data.result && data.result.answer) {
+        el.innerHTML = '<div class="prose text-sm max-w-none">' + marked.parse(data.result.answer) + '</div>';
+      }
+      badge.className = 'text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full';
+      badge.textContent = 'Completed';
+      if (text) text.textContent = 'Research complete!';
+      if (es) es.close();
+    }
+    if (status === 'error') {
+      var el = document.getElementById('synthesizer-content');
+      if (el) el.innerHTML = '<span class="text-red-600">Error: ' + (data.message || 'failed') + '</span>';
+    }
+  }
+}
+
+connectSSE();
+
+// Follow-up question
+document.getElementById('follow-btn') && document.getElementById('follow-btn').addEventListener('click', function() {
+  var query = document.getElementById('follow-query-input').value.trim();
+  var skill = (document.getElementById('follow-skill') && document.getElementById('follow-skill').value) || 'general';
+  if (!query) return;
+  var btn = this;
+  btn.disabled = true; btn.textContent = 'Starting...';
+  fetch('/research/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'query=' + encodeURIComponent(query) + '&skill=' + encodeURIComponent(skill),
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(job) { window.location.href = '/research/' + job.id; })
+  .catch(function(e) { alert('Error: ' + e.message); btn.disabled = false; btn.textContent = 'Ask'; });
+});
+
+document.getElementById('follow-query-input') && document.getElementById('follow-query-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') document.getElementById('follow-btn').click();
+});
+{% endif %}
+
 if (document.getElementById('answer-body')) {
   document.getElementById('answer-body').innerHTML = marked.parse(document.getElementById('answer-body').textContent);
 }
 
-// Follow-up question: create session then redirect to stream
-document.getElementById('follow-btn') && document.getElementById('follow-btn').addEventListener('click', async function() {
+// Follow-up for completed pages too
+document.getElementById('follow-btn') && document.getElementById('follow-btn').addEventListener('click', function() {
   var query = document.getElementById('follow-query-input').value.trim();
-  var skill = document.getElementById('follow-skill') && document.getElementById('follow-skill').value || 'general';
+  var skill = (document.getElementById('follow-skill') && document.getElementById('follow-skill').value) || 'general';
   if (!query) return;
   var btn = this;
-  btn.disabled = true;
-  btn.textContent = 'Starting...';
-  try {
-    var res = await fetch('/research/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'query=' + encodeURIComponent(query) + '&skill=' + encodeURIComponent(skill),
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    var job = await res.json();
-    window.location.href = '/research/' + job.id + '/stream';
-  } catch(e) {
-    alert('Error: ' + e.message);
-    btn.disabled = false;
-    btn.textContent = 'Ask';
-  }
-});
-
-// Enter key on follow-up input
-document.getElementById('follow-query-input') && document.getElementById('follow-query-input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') {
-    document.getElementById('follow-btn').click();
-  }
+  btn.disabled = true; btn.textContent = 'Starting...';
+  fetch('/research/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'query=' + encodeURIComponent(query) + '&skill=' + encodeURIComponent(skill),
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(job) { window.location.href = '/research/' + job.id; })
+  .catch(function(e) { alert('Error: ' + e.message); btn.disabled = false; btn.textContent = 'Ask'; });
 });
 </script>
 {% endblock %}
