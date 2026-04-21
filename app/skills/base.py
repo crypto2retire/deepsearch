@@ -36,5 +36,5 @@ class Skill:
             "- Connect findings together to tell a coherent story\n"
             "- Use [1][2] inline citations referencing the source numbers\n"
             "- sources list all cited sources with their numbers\n"
-            "- Provide 3-5 thoughtful follow-up questions"
+            "- Provide EXACTLY 3 follow-up questions that dig deeper into the topic"
         )
