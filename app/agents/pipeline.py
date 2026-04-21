@@ -104,10 +104,42 @@ async def run_pipeline(
     )
     results = await asyncio.gather(*tasks)
 
-    findings = []
+    # Build research bundles: group findings and snippets by sub-task
+    # Each sub-task gets findings from both researchers + their search snippets
+    sub_task_map = {}
+    for r in results:
+        if "error" in r:
+            continue
+        st_desc = r.get("sub_task", "")
+        if st_desc not in sub_task_map:
+            sub_task_map[st_desc] = {
+                "sub_task": st_desc,
+                "findings": [],
+                "search_snippets": [],
+                "sources_seen": set(),
+            }
+        bundle = sub_task_map[st_desc]
+        # Deduplicate findings by source URL
+        for fact in r.get("findings", []):
+            src = fact.get("source", "")
+            if src and src not in bundle["sources_seen"]:
+                bundle["sources_seen"].add(src)
+                bundle["findings"].append({**fact, "model": r.get("model", "unknown")})
+        # Deduplicate snippets by URL
+        for snippet in r.get("search_results", []):
+            url = snippet.get("url", "")
+            if url and url not in bundle["sources_seen"]:
+                bundle["sources_seen"].add(url)
+                bundle["search_snippets"].append(snippet)
+
+    research_bundles = list(sub_task_map.values())
+    # Clean up internal set before sending to synthesizer
+    for bundle in research_bundles:
+        del bundle["sources_seen"]
+
+    all_findings = []
     errors = []
     seen_urls = set()
-
     for r in results:
         if "error" in r:
             errors.append(r["error"])
@@ -116,16 +148,16 @@ async def run_pipeline(
                 src = fact.get("source", "")
                 if src not in seen_urls:
                     seen_urls.add(src)
-                    findings.append({**fact, "model": r.get("model", "unknown")})
+                    all_findings.append({**fact, "model": r.get("model", "unknown")})
 
-    logger.info(f"Researchers done: {len(findings)} findings, {len(errors)} errors")
+    logger.info(f"Researchers done: {len(all_findings)} findings, {len(errors)} errors across {len(research_bundles)} sub-tasks")
 
-    if findings:
+    if all_findings:
         yield {
             "agent": "researcher",
             "status": "completed",
-            "message": f"Merged {len(findings)} unique findings from both researchers",
-            "findings": findings,
+            "message": f"Merged {len(all_findings)} unique findings from both researchers",
+            "findings": all_findings,
         }
     else:
         error_detail = "; ".join(errors[:3])
@@ -133,10 +165,18 @@ async def run_pipeline(
         yield {"agent": "researcher", "status": "error", "message": f"All researchers failed: {error_detail}", "errors": errors}
         return
 
-    # 3. Synthesizer
+    # 3. Synthesizer -- two-pass: organize findings, then write report
     yield {"agent": "synthesizer", "status": "started", "message": "Synthesizing answer..."}
     try:
-        result = await call_synthesizer(query, findings, synthesizer_model, _key(synthesizer_api_key), _prov(synthesizer_provider), system_prompt=skill.get_synthesizer_prompt())
+        result = await call_synthesizer(
+            query,
+            research_bundles,
+            all_findings,
+            synthesizer_model,
+            _key(synthesizer_api_key),
+            _prov(synthesizer_provider),
+            system_prompt=skill.get_synthesizer_prompt(),
+        )
         logger.info(f"Synthesizer completed")
         yield {
             "agent": "synthesizer",
