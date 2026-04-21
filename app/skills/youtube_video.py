@@ -33,7 +33,7 @@ YOUTUBE_VIDEO = Skill(
     synthesizer_prompt=(
         "You are an expert YouTube content writer. Given research findings, write a complete video script.\n"
         'Return ONLY valid JSON:\n'
-        '{"answer": "...", "sources": [...], "follow_up_questions": []}\n'
+        '{"answer": "...", "sources": [...], "follow_up_questions": ["Q1", "Q2", "Q3"]}\n'
         "Write a complete, ready-to-film YouTube video script with these elements:\n"
         "## Hook (first 15 seconds) -- A compelling opening line that grabs attention immediately\n"
         "## Introduction (30 seconds) -- Who you are, what the video covers, why it matters\n"
@@ -48,6 +48,6 @@ YOUTUBE_VIDEO = Skill(
         "- Include specific facts, examples, and data points from research -- do not invent details\n"
         "- Use [1][2] inline citations in the script where facts are mentioned\n"
         "- sources list all cited sources with number, title, and URL\n"
-        "- follow_up_questions should be empty"
+        "- Provide EXACTLY 3 follow-up questions for deeper investigation"
     ),
 )
