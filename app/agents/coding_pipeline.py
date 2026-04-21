@@ -1,12 +1,9 @@
-import asyncio
 import logging
-import tempfile
-import os
 from typing import Optional, AsyncIterator
 
 from app.agents.architect import run_architect
 from app.agents.coder import run_coder
-from app.services.github import clone_repo, push_to_existing, init_new_repo
+from app.services.github import push_to_existing, init_new_repo
 
 logger = logging.getLogger("deepsearch.coding_pipeline")
 
@@ -19,7 +16,6 @@ async def run_coding_pipeline(
     github_pat: str,
 ) -> AsyncIterator[dict]:
     files = {}
-    repo_dir = None
     repo_url = None
 
     try:
@@ -33,14 +29,7 @@ async def run_coding_pipeline(
             yield {
                 "agent": "pipeline",
                 "status": "progress",
-                "message": f"Cloning repo: {github_url}",
-            }
-            repo_dir = tempfile.mkdtemp(prefix="deepsearch_clone_")
-            await clone_repo(github_url, repo_dir)
-            yield {
-                "agent": "pipeline",
-                "status": "progress",
-                "message": "Repo cloned successfully",
+                "message": f"Modifying existing repo: {github_url}",
             }
 
         yield {
@@ -70,7 +59,7 @@ async def run_coding_pipeline(
             description=description,
             spec=arch_result.get("spec", ""),
             github_url=github_url,
-            repo_dir=repo_dir,
+            repo_dir=None,
             api_key=moonshot_api_key,
         )
         files = coder_result.get("files", {})
@@ -124,7 +113,3 @@ async def run_coding_pipeline(
             "status": "error",
             "message": str(e),
         }
-    finally:
-        if repo_dir and os.path.exists(repo_dir):
-            import shutil
-            shutil.rmtree(repo_dir, ignore_errors=True)
