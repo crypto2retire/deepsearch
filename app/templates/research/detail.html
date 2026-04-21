@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}DeepSearch — {{ query }}{% endblock %}
+{% block title %}DeepSearch -- {{ query }}{% endblock %}
 {% block body %}
 <div class="min-h-screen flex flex-col">
   <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -43,13 +43,40 @@
     {% if follow_ups %}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
       <h3 class="text-sm font-semibold text-gray-700 mb-3">Follow-up Questions</h3>
-      <ul class="space-y-1">
+      <ul class="space-y-1 mb-4">
         {% for q in follow_ups %}
         <li><a href="/dashboard?query={{ q | urlencode }}" class="text-blue-600 hover:underline text-sm">{{ q }}</a></li>
         {% endfor %}
       </ul>
     </div>
     {% endif %}
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <h3 class="text-sm font-semibold text-gray-700 mb-3">Ask a Follow-up Question</h3>
+      <form action="/research/start" method="post" class="flex gap-3">
+        <input type="hidden" name="skill" id="follow-skill" value="general" />
+        <input
+          type="text"
+          name="query"
+          id="follow-query-input"
+          placeholder="Ask a personalized follow-up question..."
+          class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-base"
+          style="font-size:16px"
+        />
+        <button type="submit"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition">
+          Ask
+        </button>
+      </form>
+      {% if skill %}
+      <input type="hidden" id="current-skill" value="{{ skill }}" />
+      <script>
+        var skillInput = document.getElementById('follow-skill');
+        var currentSkill = document.getElementById('current-skill');
+        if (skillInput && currentSkill) skillInput.value = currentSkill.value;
+      </script>
+      {% endif %}
+    </div>
 
     {% elif status == "failed" %}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
