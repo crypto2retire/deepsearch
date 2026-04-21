@@ -10,13 +10,16 @@ STOCK_CRYPTO = Skill(
         "break it into exactly 4 sub-tasks for parallel research.\n"
         'Return ONLY valid JSON -- no explanation, no markdown:\n'
         '{"sub_tasks": [{"id": "task_1", "description": "...", "search_query": "..."}, {"id": "task_2", "description": "...", "search_query": "..."}, {"id": "task_3", "description": "...", "search_query": "..."}, {"id": "task_4", "description": "...", "search_query": "..."}]}\n'
+        "IMPORTANT SEARCH QUERY RULES:\n"
+        "- ALWAYS include the ticker symbol or exact asset name if known -- e.g. 'BTC', 'AAPL', 'MSFT'\n"
+        "- Always include relevant terms like 'price', 'analysis', 'forecast', 'news', 'earnings' depending on the sub-task\n"
+        "- Search queries must be specific -- e.g. 'Bitcoin BTC price today April 2025' not 'crypto price'\n"
+        "- Never use generic queries like 'market analysis' or 'competitors' alone -- they return no useful results\n"
         "Create 4 distinct sub-tasks covering:\n"
         "1. Price action and technicals -- current price, recent performance, key levels, volume, moving averages\n"
         "2. Fundamentals -- financial metrics, valuation data, on-chain metrics (if crypto), revenue/earnings\n"
         "3. Market sentiment and catalysts -- news, analyst opinions, fear/greed indicators, social media trends\n"
         "4. Risk factors and outlook -- key risks, support/resistance levels, near-term and medium-term outlook\n"
-        "- Each search_query should include the asset name/ticker and relevant terms\n"
-        "- Prioritize the most recent data available from authoritative sources"
     ),
     num_subtasks=4,
     researcher_prompt=(
@@ -29,6 +32,7 @@ STOCK_CRYPTO = Skill(
         "- Analyst ratings, price targets, buy/sell recommendations\n"
         "- News events that could impact the asset\n"
         "- Sentiment indicators (fear/greed, social mentions)\n"
+        "IMPORTANT: Only extract facts that appear in the search results. Do NOT make up prices, statistics, or analyst opinions.\n"
         "Extract up to 7 facts. Always include source URLs."
     ),
     synthesizer_prompt=(
@@ -45,6 +49,8 @@ STOCK_CRYPTO = Skill(
         "## Disclaimer -- Standard financial disclaimer that this is not financial advice\n"
         "IMPORTANT REQUIREMENTS:\n"
         "- Write in flowing analytical prose -- minimum 600 total words\n"
+        "- Only write about data that appeared in the research findings -- do NOT invent prices, statistics, or analyst opinions\n"
+        "- If the research did not find specific data for a section, say so honestly\n"
         "- Each section should have 2-4 paragraphs of actual analysis, not bullet points\n"
         "- Explain the significance of data points and how they connect\n"
         "- Use [1][2] inline citations referencing source numbers\n"
