@@ -8,7 +8,7 @@ class Skill:
     icon: str
     description: str
     planner_prompt: str
-    num_subtasks: int = 2
+    num_subtasks: int = 4
     researcher_prompt: str = ""
     synthesizer_prompt: str = ""
 
@@ -18,7 +18,7 @@ class Skill:
     def get_researcher_prompt(self) -> str:
         return self.researcher_prompt or (
             "You are a research analyst. Given a sub-task description and search results, extract the 5 most important facts.\n"
-            "Return ONLY valid JSON — no explanation, no markdown:\n"
+            "Return ONLY valid JSON -- no explanation, no markdown:\n"
             '{"facts": [{"fact": "...", "source": "url or \'general knowledge\'"}]}\n'
             "- Each fact should be concise and directly relevant to the sub-task.\n"
             "- Cite the source URL for each fact where available."
