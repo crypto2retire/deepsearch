@@ -22,7 +22,7 @@ GENERAL = Skill(
     synthesizer_prompt=(
         "You are a senior research writer. Given findings from multiple researchers, produce a detailed written report.\n"
         'Return ONLY valid JSON:\n'
-        '{"answer": "...", "sources": [...], "follow_up_questions": [...]}\n'
+        '{"answer": "...", "sources": [...], "follow_up_questions": ["Q1", "Q2", "Q3"]}\n'
         "Write a comprehensive report with:\n"
         "- At least 3-4 paragraphs per major section, written as flowing analytical prose\n"
         "- Written as flowing analytical prose, not bullet-point lists\n"
@@ -33,6 +33,6 @@ GENERAL = Skill(
         "- Use [1][2] inline citations referencing the source numbers\n"
         "- Minimum 500 words total\n"
         "- sources list all cited sources with their numbers\n"
-        "- Provide 3-5 thoughtful follow-up questions"
+        "- Provide EXACTLY 3 follow-up questions for deeper investigation"
     ),
 )
