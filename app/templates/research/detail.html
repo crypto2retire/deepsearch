@@ -79,14 +79,43 @@
     </div>
 
     {% else %}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6" id="loading-card">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-gray-900">{{ query }}</h2>
-        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">{{ status }}</span>
+        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full" id="status-badge">{{ status }}</span>
       </div>
-      <p class="text-sm text-gray-500">This research session is still processing or has no results.</p>
+      <div id="loading-content">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+          <span class="text-sm text-gray-500">Research in progress, please wait...</span>
+        </div>
+        <div class="text-xs text-gray-400">This page will automatically update when complete.</div>
+      </div>
     </div>
     {% endif %}
+
+<script>
+(function() {
+  var status = "{{ status }}";
+  if (status === "pending" || status === "active") {
+    var pollInterval = setInterval(async function() {
+      try {
+        var res = await fetch('/research/{{ job_id }}');
+        if (res.ok) {
+          var data = await res.json();
+          if (data.status === "completed") {
+            clearInterval(pollInterval);
+            window.location.reload();
+          } else if (data.status === "failed") {
+            clearInterval(pollInterval);
+            window.location.reload();
+          }
+        }
+      } catch(e) {}
+    }, 5000);
+  }
+})();
+</script>
   </main>
 </div>
 <script>
