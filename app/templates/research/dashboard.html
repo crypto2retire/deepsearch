@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}DeepSearch — Research Dashboard{% endblock %}
+{% block title %}DeepSearch -- Research Dashboard{% endblock %}
 {% block body %}
 <div class="min-h-screen flex flex-col">
   <!-- Header -->
@@ -58,7 +58,7 @@
           <h3 class="text-sm font-medium text-gray-700 mb-2">Follow-up questions</h3>
           <ul class="space-y-1">
             {% for q in result.follow_up_questions %}
-            <li><a href="/?query={{ q | urlencode }}" class="text-blue-600 hover:underline text-sm">{{ q }}</a></li>
+            <li><a href="/dashboard?query={{ q | urlencode }}" class="text-blue-600 hover:underline text-sm">{{ q }}</a></li>
             {% endfor %}
           </ul>
         </div>
@@ -96,6 +96,22 @@
 </div>
 
 <script>
+// Pre-fill query from URL parameter ?query=
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var q = params.get('query');
+  if (q) {
+    var input = document.getElementById('query-input');
+    if (input) {
+      input.value = q;
+      input.focus();
+      // Move cursor to end
+      var len = input.value.length;
+      input.setSelectionRange(len, len);
+    }
+  }
+})();
+
 // Skill selector
 document.querySelectorAll('.skill-btn').forEach(function(btn) {
   btn.addEventListener('click', function() {
@@ -135,115 +151,14 @@ document.getElementById('research-form').addEventListener('submit', async functi
     } catch (_) {
       msg = (await res.text()).slice(0, 200) || msg;
     }
-    container.innerHTML = '<div class="bg-red-50 text-red-700 p-4 rounded-lg">Error: ' + msg + '</div>';
+    resultsArea.innerHTML = '<div class="bg-red-50 text-red-700 p-4 rounded-lg">' + msg + '</div>';
     submitBtn.disabled = false;
     submitBtn.textContent = 'Search';
     return;
   }
 
   const job = await res.json();
-  resultsArea.innerHTML = '<div id="stream-container"></div>';
-  const container = document.getElementById('stream-container');
-
-  let streamRes;
-  try {
-    streamRes = await fetch('/research/' + job.id + '/stream');
-  } catch(err) {
-    container.innerHTML = '<div class="bg-red-50 text-red-700 p-4 rounded-lg">Connection error: ' + err.message + '</div>';
-    submitBtn.disabled = false; submitBtn.textContent = 'Search';
-    return;
-  }
-
-  const reader = streamRes.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let lastAgent = null;
-
-  function renderEvent(data) {
-    const agent = data.agent;
-
-    if (data.status === 'error') {
-      const cardId = agent + '-content';
-      const el = document.getElementById(cardId);
-      if (el) {
-        el.innerHTML = '<span class="text-red-600 font-medium">Error: ' + (data.message || 'Unknown error') + '</span>';
-      } else {
-        container.innerHTML += '<div class="bg-red-50 text-red-700 p-4 rounded-lg fade-in"><strong>' + (agent || 'Pipeline') + ' error:</strong> ' + (data.message || 'Unknown error') + '</div>';
-      }
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Search';
-      return;
-    }
-
-    if (agent === 'planner') {
-      if (data.status === 'started') {
-        container.innerHTML += '<div id="planner-card" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 agent-planner fade-in"><div class="text-xs font-semibold text-amber-600 uppercase mb-2">Planner</div><div id="planner-content" class="text-sm text-gray-700"><span class="thinking-dots text-gray-400">Planning</span></div></div>';
-      }
-      if (data.status === 'completed') {
-        const el = document.getElementById('planner-content');
-        const tasks = (data.plan && data.plan.sub_tasks) || [];
-        if (el) el.innerHTML = tasks.map(function(t) { return '<div class="mb-1">• <span class="text-gray-900">' + (t.description || t.sub_task || t) + '</span></div>'; }).join('');
-      }
-    }
-    if (agent === 'researcher') {
-      if (data.status === 'started') {
-        container.innerHTML += '<div id="researcher-card" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 agent-researcher fade-in"><div class="text-xs font-semibold text-blue-600 uppercase mb-2">Researcher</div><div id="researcher-content" class="text-sm text-gray-700"><span class="thinking-dots text-gray-400">Researching</span></div></div>';
-      }
-      if (data.status === 'progress') {
-        const el = document.getElementById('researcher-content');
-        if (el) el.innerHTML = '<span class="thinking-dots text-gray-400">Searching</span> ' + (data.findings || []).length + ' sources found';
-      }
-      if (data.status === 'completed') {
-        const el = document.getElementById('researcher-content');
-        if (el) el.innerHTML = '<span class="text-green-600">✓</span> ' + (data.findings || []).length + ' sources researched';
-      }
-    }
-    if (agent === 'synthesizer') {
-      if (data.status === 'started') {
-        container.innerHTML += '<div id="synthesizer-card" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 agent-synthesizer fade-in"><div class="text-xs font-semibold text-emerald-600 uppercase mb-2">Synthesizer</div><div id="synthesizer-content" class="text-sm text-gray-700"><span class="thinking-dots text-gray-400">Synthesizing</span></div></div>';
-      }
-      if (data.status === 'progress') {
-        const el = document.getElementById('synthesizer-content');
-        if (el) {
-          const partial = data.partial || '';
-          el.innerHTML = '<div class="prose text-sm max-w-none">' + marked.parse(partial) + '</div>';
-          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      }
-      if (data.status === 'completed') {
-        const el = document.getElementById('synthesizer-content');
-        if (el) {
-          el.innerHTML = '<div class="prose text-sm max-w-none">' + marked.parse(data.result?.answer || '') + '</div>';
-          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Search';
-        }
-      }
-    }
-  }
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(line.slice(6));
-            renderEvent(data);
-          } catch(e) {
-            console.error('SSE parse error:', e, line);
-          }
-        }
-      }
-    }
-  } catch(err) {
-    container.innerHTML += '<div class="bg-red-50 text-red-700 p-4 rounded-lg mt-2">Stream error: ' + err.message + '</div>';
-    submitBtn.disabled = false; submitBtn.textContent = 'Search';
-  }
+  window.location.href = '/research/' + job.id + '/stream';
 });
 
 // Render any pre-filled result markdown
