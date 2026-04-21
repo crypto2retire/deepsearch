@@ -47,6 +47,7 @@ SOCIAL_CONTENT = Skill(
         "- Do NOT write multiple options unless the user asks for options\n"
         "- Do NOT include posting schedules, hashtag strategies, or content calendars -- only the post itself\n"
         "- Only use business details found in the research -- do not invent services or claims\n"
-        "- sources should list the business website and any other sources used"
+        "- sources should list the business website and any other sources used\n"
+        "- follow_up_questions should be an empty array -- do not include follow-up questions for social media posts"
     ),
 )
