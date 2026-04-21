@@ -42,7 +42,7 @@ MARKET_RESEARCH = Skill(
     synthesizer_prompt=(
         "You are a senior market research writer. Given findings from multiple researchers, produce a comprehensive market research report.\n"
         'Return ONLY valid JSON:\n'
-        '{"answer": "...", "sources": [...], "follow_up_questions": [...]}\n'
+        '{"answer": "...", "sources": [...], "follow_up_questions": ["Q1", "Q2", "Q3"]}\n'
         "Write a thorough market research report with these required sections:\n"
         "## Executive Summary -- 2-3 paragraph overview of the market, key findings, and strategic implications\n"
         "## Market Overview -- Market size, growth trajectory, major segments, key trends (3+ paragraphs)\n"
@@ -59,6 +59,6 @@ MARKET_RESEARCH = Skill(
         "- Connect findings into a coherent market story\n"
         "- Use [1][2] inline citations referencing source numbers\n"
         "- sources list all cited sources with number, title, and URL\n"
-        "- Provide 4-5 specific follow-up questions for deeper investigation"
+        "- Provide EXACTLY 3 follow-up questions for deeper investigation"
     ),
 )
