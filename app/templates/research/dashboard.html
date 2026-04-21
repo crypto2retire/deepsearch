@@ -2,7 +2,6 @@
 {% block title %}DeepSearch -- Research Dashboard{% endblock %}
 {% block body %}
 <div class="min-h-screen flex flex-col">
-  <!-- Header -->
   <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-4">
       <h1 class="text-xl font-bold text-gray-900">DeepSearch</h1>
@@ -13,11 +12,8 @@
   </header>
 
   <main class="flex-1 max-w-5xl mx-auto w-full px-6 py-8">
-    <!-- Query Form -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
       <h2 class="text-lg font-semibold mb-4">Start Research</h2>
-
-      <!-- Skill selector -->
       <div class="flex flex-wrap gap-2 mb-4" id="skill-selector">
         {% for s in skills %}
         <button type="button" data-skill="{{ s.id }}"
@@ -27,7 +23,6 @@
         </button>
         {% endfor %}
       </div>
-
       <form id="research-form" method="post" action="/research/start">
         <input type="hidden" name="skill" id="skill-input" value="general" />
         <div class="flex gap-3">
@@ -43,10 +38,8 @@
       </form>
     </div>
 
-    <!-- Results Area -->
     <div id="results-area" class="space-y-4">
       {% if result %}
-      <!-- Completed Result -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold">{{ result.query }}</h2>
@@ -67,7 +60,6 @@
       {% endif %}
     </div>
 
-    <!-- History -->
     <div class="mt-8">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Recent Research</h3>
@@ -96,23 +88,15 @@
 </div>
 
 <script>
-// Pre-fill query from URL parameter ?query=
 (function() {
   var params = new URLSearchParams(window.location.search);
   var q = params.get('query');
   if (q) {
     var input = document.getElementById('query-input');
-    if (input) {
-      input.value = q;
-      input.focus();
-      // Move cursor to end
-      var len = input.value.length;
-      input.setSelectionRange(len, len);
-    }
+    if (input) { input.value = q; input.focus(); }
   }
 })();
 
-// Skill selector
 document.querySelectorAll('.skill-btn').forEach(function(btn) {
   btn.addEventListener('click', function() {
     document.querySelectorAll('.skill-btn').forEach(function(b) {
@@ -125,45 +109,90 @@ document.querySelectorAll('.skill-btn').forEach(function(btn) {
   });
 });
 
-// Handle form submit with streaming
 document.getElementById('research-form').addEventListener('submit', async function(e) {
   e.preventDefault();
-  const form = this;
-  const query = document.getElementById('query-input').value;
-  const skill = document.getElementById('skill-input').value;
-  const submitBtn = document.getElementById('submit-btn');
-  const resultsArea = document.getElementById('results-area');
+  var query = document.getElementById('query-input').value;
+  var skill = document.getElementById('skill-input').value;
+  var submitBtn = document.getElementById('submit-btn');
+  var resultsArea = document.getElementById('results-area');
 
   submitBtn.disabled = true;
   submitBtn.textContent = 'Researching...';
 
-  const res = await fetch('/research/start', {
+  var res = await fetch('/research/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: 'query=' + encodeURIComponent(query) + '&skill=' + encodeURIComponent(skill),
   });
 
   if (!res.ok) {
-    let msg = 'HTTP ' + res.status;
-    try {
-      const err = await res.json();
-      msg = err.detail || msg;
-    } catch (_) {
-      msg = (await res.text()).slice(0, 200) || msg;
-    }
+    var msg = 'HTTP ' + res.status;
+    try { var err = await res.json(); msg = err.detail || msg; } catch (_) { msg = (await res.text()).slice(0, 200) || msg; }
     resultsArea.innerHTML = '<div class="bg-red-50 text-red-700 p-4 rounded-lg">' + msg + '</div>';
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Search';
+    submitBtn.disabled = false; submitBtn.textContent = 'Search';
     return;
   }
 
-  const job = await res.json();
-  window.location.href = '/research/' + job.id + '/stream';
-});
+  var job = await res.json();
+  resultsArea.innerHTML = '<div id="stream-container"></div>';
+  var container = document.getElementById('stream-container');
 
-// Render any pre-filled result markdown
-if (document.getElementById('answer-body')) {
-  document.getElementById('answer-body').innerHTML = marked.parse(document.getElementById('answer-body').textContent);
+  var streamRes;
+  try { streamRes = await fetch('/research/' + job.id + '/stream'); }
+  catch(err) { container.innerHTML = '<div class="bg-red-50 text-red-700 p-4 rounded-lg">Connection error: ' + err.message + '</div>'; submitBtn.disabled = false; submitBtn.textContent = 'Search'; return; }
+
+  var reader = streamRes.body.getReader();
+  var decoder = new TextDecoder();
+  var buffer = '';
+
+  function renderEvent(data) {
+    var agent = data.agent;
+    if (data.status === 'error') {
+      var cardId = agent + '-content';
+      var el = document.getElementById(cardId);
+      if (el) { el.innerHTML = '<span class="text-red-600 font-medium">Error: ' + (data.message || 'Unknown error') + '</span>'; }
+      else { container.innerHTML += '<div class="bg-red-50 text-red-700 p-4 rounded-lg fade-in"><strong>' + (agent || 'Pipeline') + ' error:</strong> ' + (data.message || 'Unknown error') + '</div>'; }
+      submitBtn.disabled = false; submitBtn.textContent = 'Search'; return;
+    }
+    if (agent === 'planner') {
+      if (data.status === 'started') { container.innerHTML += '<div id="planner-card" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 agent-planner fade-in"><div class="text-xs font-semibold text-amber-600 uppercase mb-2">Planner</div><div id="planner-content" class="text-sm text-gray-700"><span class="thinking-dots text-gray-400">Planning</span></div></div>'; }
+      if (data.status === 'completed') {
+        var el = document.getElementById('planner-content');
+        var tasks = (data.plan && data.plan.sub_tasks) || [];
+        if (el) el.innerHTML = tasks.map(function(t) { return '<div class="mb-1">• <span class="text-gray-900">' + (t.description || t.sub_task || t) + '</span></div>'; }).join('');
+      }
+    }
+    if (agent === 'researcher') {
+      if (data.status === 'started') { container.innerHTML += '<div id="researcher-card" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 agent-researcher fade-in"><div class="text-xs font-semibold text-blue-600 uppercase mb-2">Researcher</div><div id="researcher-content" class="text-sm text-gray-700"><span class="thinking-dots text-gray-400">Researching</span></div></div>'; }
+      if (data.status === 'completed') { var el = document.getElementById('researcher-content'); if (el) el.innerHTML = '<span class="text-green-600">✓</span> ' + (data.findings || []).length + ' sources researched'; }
+    }
+    if (agent === 'synthesizer') {
+      if (data.status === 'started') { container.innerHTML += '<div id="synthesizer-card" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 agent-synthesizer fade-in"><div class="text-xs font-semibold text-emerald-600 uppercase mb-2">Synthesizer</div><div id="synthesizer-content" class="text-sm text-gray-700"><span class="thinking-dots text-gray-400">Synthesizing</span></div></div>'; }
+      if (data.status === 'completed') {
+        var el = document.getElementById('synthesizer-content');
+        if (el) { el.innerHTML = '<div class="prose text-sm max-w-none">' + marked.parse(data.result && data.result.answer || '') + '</div>'; submitBtn.disabled = false; submitBtn.textContent = 'Search'; }
+      }
+    }
+  }
+
+  try {
+    while (true) {
+      var result = await reader.read();
+      if (result.done) break;
+      buffer += decoder.decode(result.value, { stream: true });
+      var lines = buffer.split('\\n');
+      buffer = lines.pop() || '';
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        if (line.indexOf('data: ') === 0) {
+          try { var data = JSON.parse(line.slice(6)); renderEvent(data); }
+          catch(e) { console.error('SSE parse error:', e, line); }
+        }
+      }
+    }
+  } catch(err) { container.innerHTML += '<div class="bg-red-50 text-red-700 p-4 rounded-lg mt-2">Stream error: ' + err.message + '</div>'; submitBtn.disabled = false; submitBtn.textContent = 'Search'; }
 }
+
+if (document.getElementById('answer-body')) { document.getElementById('answer-body').innerHTML = marked.parse(document.getElementById('answer-body').textContent); }
 </script>
 {% endblock %}
