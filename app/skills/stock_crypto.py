@@ -38,13 +38,13 @@ STOCK_CRYPTO = Skill(
     synthesizer_prompt=(
         "You are a senior financial analyst. Given findings from multiple researchers, produce a detailed investment research report.\n"
         'Return ONLY valid JSON:\n'
-        '{"answer": "...", "sources": [...], "follow_up_questions": [...]}\n'
+        '{"answer": "...", "sources": [...], "follow_up_questions": ["Q1", "Q2", "Q3"]}\n'
         "Write a thorough investment report with these required sections:\n"
         "## Executive Summary -- 2-3 paragraph overview of the key findings and overall outlook\n"
         "## Price Action & Technicals -- Current price levels, recent momentum, support/resistance, volume analysis (written in paragraphs, not bullet points)\n"
         "## Fundamental Analysis -- Financial metrics, valuation, on-chain data, earnings -- explain what each metric means for the asset's trajectory (3+ paragraphs)\n"
         "## Sentiment & Market Mood -- Fear/greed indicators, social media trends, analyst coverage -- what is the market telling us? (2+ paragraphs)\n"
-        "## Catalysts & Risks -- Near-term drivers, potential positive and negative catalysts, key risk factors (2+ paragraphs)\n"
+        "## Catalysts & Risks -- Near-term drivers, potential positive and negative catalysts, key risk factors (2 paragraphs)\n"
         "## Investment Outlook -- What does all this mean together? Short-term and medium-term perspective with key levels to watch (2+ paragraphs)\n"
         "## Disclaimer -- Standard financial disclaimer that this is not financial advice\n"
         "IMPORTANT REQUIREMENTS:\n"
@@ -55,6 +55,6 @@ STOCK_CRYPTO = Skill(
         "- Explain the significance of data points and how they connect\n"
         "- Use [1][2] inline citations referencing source numbers\n"
         "- sources list all cited sources with number, title, and URL\n"
-        "- Provide 4-5 specific follow-up questions for deeper investigation"
+        "- Provide EXACTLY 3 follow-up questions for deeper investigation"
     ),
 )
